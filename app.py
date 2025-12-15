@@ -29,38 +29,305 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
-st.markdown("""
+# -----------------------------------------------------------------------------
+# THEME MANAGEMENT
+# -----------------------------------------------------------------------------
+
+# Initialize session state for theme
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'light'
+
+def toggle_theme():
+    """Toggle between light and dark theme"""
+    if st.session_state.theme == 'light':
+        st.session_state.theme = 'dark'
+    else:
+        st.session_state.theme = 'light'
+
+# Theme colors
+THEMES = {
+    'light': {
+        'bg_color': '#FFFFFF',
+        'secondary_bg': '#F0F2F6',
+        'text_color': '#1E1E1E',
+        'card_bg': '#FFFFFF',
+        'accent_color': '#3B82F6',
+        'success_color': '#10B981',
+        'warning_color': '#F59E0B',
+        'error_color': '#EF4444',
+        'border_color': '#E5E7EB',
+        'header_color': '#1E3A8A',
+        'subheader_color': '#3B82F6',
+        'plotly_template': 'plotly_white',
+        'chart_bg': 'rgba(255,255,255,1)',
+        'grid_color': 'rgba(128,128,128,0.2)'
+    },
+    'dark': {
+        'bg_color': '#0E1117',
+        'secondary_bg': '#262730',
+        'text_color': '#FAFAFA',
+        'card_bg': '#1E1E2E',
+        'accent_color': '#60A5FA',
+        'success_color': '#34D399',
+        'warning_color': '#FBBF24',
+        'error_color': '#F87171',
+        'border_color': '#374151',
+        'header_color': '#60A5FA',
+        'subheader_color': '#93C5FD',
+        'plotly_template': 'plotly_dark',
+        'chart_bg': 'rgba(14,17,23,1)',
+        'grid_color': 'rgba(128,128,128,0.3)'
+    }
+}
+
+# Get current theme
+current_theme = THEMES[st.session_state.theme]
+
+# Apply custom CSS based on theme
+def apply_theme_css():
+    theme = current_theme
+    
+    css = f"""
     <style>
-    .main-header {
+    /* Main app background */
+    .stApp {{
+        background-color: {theme['bg_color']};
+    }}
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {{
+        background-color: {theme['secondary_bg']};
+    }}
+    
+    [data-testid="stSidebar"] .stMarkdown {{
+        color: {theme['text_color']};
+    }}
+    
+    /* Headers */
+    .main-header {{
         font-size: 2.5rem;
         font-weight: bold;
-        color: #1E3A8A;
+        color: {theme['header_color']};
         text-align: center;
         margin-bottom: 1rem;
-    }
-    .sub-header {
+        padding: 1rem;
+        background: linear-gradient(90deg, {theme['secondary_bg']} 0%, {theme['bg_color']} 50%, {theme['secondary_bg']} 100%);
+        border-radius: 10px;
+    }}
+    
+    .sub-header {{
         font-size: 1.5rem;
         font-weight: bold;
-        color: #3B82F6;
+        color: {theme['subheader_color']};
         margin-top: 1rem;
-    }
-    .metric-card {
-        background-color: #F0F9FF;
+    }}
+    
+    /* Metric cards */
+    [data-testid="stMetricValue"] {{
+        color: {theme['text_color']};
+    }}
+    
+    [data-testid="stMetricLabel"] {{
+        color: {theme['text_color']};
+    }}
+    
+    /* Text elements */
+    .stMarkdown, .stText {{
+        color: {theme['text_color']};
+    }}
+    
+    h1, h2, h3, h4, h5, h6 {{
+        color: {theme['text_color']} !important;
+    }}
+    
+    p, span, label {{
+        color: {theme['text_color']};
+    }}
+    
+    /* Cards and containers */
+    .metric-card {{
+        background-color: {theme['card_bg']};
         padding: 1rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #3B82F6;
-    }
-    .stTabs [data-baseweb="tab-list"] {
+        border-left: 4px solid {theme['accent_color']};
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }}
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {{
         gap: 2rem;
-    }
-    .stTabs [data-baseweb="tab"] {
+        background-color: {theme['secondary_bg']};
+        border-radius: 10px;
+        padding: 0.5rem;
+    }}
+    
+    .stTabs [data-baseweb="tab"] {{
         height: 3rem;
         padding-left: 1rem;
         padding-right: 1rem;
-    }
+        color: {theme['text_color']};
+        background-color: transparent;
+        border-radius: 5px;
+    }}
+    
+    .stTabs [data-baseweb="tab"]:hover {{
+        background-color: {theme['accent_color']}33;
+    }}
+    
+    .stTabs [aria-selected="true"] {{
+        background-color: {theme['accent_color']};
+        color: white !important;
+    }}
+    
+    /* Buttons */
+    .stButton > button {{
+        background-color: {theme['accent_color']};
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+    }}
+    
+    .stButton > button:hover {{
+        background-color: {theme['header_color']};
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }}
+    
+    /* Expanders */
+    .streamlit-expanderHeader {{
+        background-color: {theme['secondary_bg']};
+        color: {theme['text_color']};
+        border-radius: 5px;
+    }}
+    
+    .streamlit-expanderContent {{
+        background-color: {theme['card_bg']};
+        border: 1px solid {theme['border_color']};
+    }}
+    
+    /* DataFrames */
+    .stDataFrame {{
+        background-color: {theme['card_bg']};
+    }}
+    
+    /* Select boxes and inputs */
+    .stSelectbox, .stMultiSelect, .stSlider, .stNumberInput {{
+        color: {theme['text_color']};
+    }}
+    
+    /* Theme toggle button */
+    .theme-toggle {{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, {theme['accent_color']}, {theme['header_color']});
+        color: white;
+        border-radius: 25px;
+        font-weight: bold;
+        margin: 1rem 0;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }}
+    
+    .theme-toggle:hover {{
+        transform: scale(1.05);
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    }}
+    
+    /* Info boxes */
+    .stAlert {{
+        background-color: {theme['secondary_bg']};
+        color: {theme['text_color']};
+    }}
+    
+    /* Progress bar */
+    .stProgress > div > div {{
+        background-color: {theme['accent_color']};
+    }}
+    
+    /* Divider */
+    hr {{
+        border-color: {theme['border_color']};
+    }}
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {{
+        width: 8px;
+        height: 8px;
+    }}
+    
+    ::-webkit-scrollbar-track {{
+        background: {theme['secondary_bg']};
+    }}
+    
+    ::-webkit-scrollbar-thumb {{
+        background: {theme['accent_color']};
+        border-radius: 4px;
+    }}
+    
+    ::-webkit-scrollbar-thumb:hover {{
+        background: {theme['header_color']};
+    }}
+    
+    /* Animation for cards */
+    @keyframes fadeIn {{
+        from {{ opacity: 0; transform: translateY(10px); }}
+        to {{ opacity: 1; transform: translateY(0); }}
+    }}
+    
+    .element-container {{
+        animation: fadeIn 0.5s ease-out;
+    }}
     </style>
-""", unsafe_allow_html=True)
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
+# Apply theme CSS
+apply_theme_css()
+
+# -----------------------------------------------------------------------------
+# PLOTLY THEME HELPER
+# -----------------------------------------------------------------------------
+
+def get_plotly_layout():
+    """Get Plotly layout settings based on current theme"""
+    theme = current_theme
+    return {
+        'template': theme['plotly_template'],
+        'paper_bgcolor': theme['chart_bg'],
+        'plot_bgcolor': theme['chart_bg'],
+        'font': {'color': theme['text_color']},
+        'xaxis': {
+            'gridcolor': theme['grid_color'],
+            'zerolinecolor': theme['grid_color']
+        },
+        'yaxis': {
+            'gridcolor': theme['grid_color'],
+            'zerolinecolor': theme['grid_color']
+        }
+    }
+
+def apply_plotly_theme(fig):
+    """Apply current theme to a Plotly figure"""
+    layout_settings = get_plotly_layout()
+    fig.update_layout(
+        template=layout_settings['template'],
+        paper_bgcolor=layout_settings['paper_bgcolor'],
+        plot_bgcolor=layout_settings['plot_bgcolor'],
+        font=layout_settings['font']
+    )
+    fig.update_xaxes(
+        gridcolor=layout_settings['xaxis']['gridcolor'],
+        zerolinecolor=layout_settings['xaxis']['zerolinecolor']
+    )
+    fig.update_yaxes(
+        gridcolor=layout_settings['yaxis']['gridcolor'],
+        zerolinecolor=layout_settings['yaxis']['zerolinecolor']
+    )
+    return fig
 
 # -----------------------------------------------------------------------------
 # DATA LOADING FUNCTION - FIXED VERSION
@@ -282,21 +549,22 @@ def create_income_distribution(df):
     # Histogram
     fig.add_trace(
         go.Histogram(x=df['Income'], nbinsx=50, name='Income Distribution',
-                     marker_color='#3B82F6', opacity=0.7),
+                     marker_color=current_theme['accent_color'], opacity=0.7),
         row=1, col=1
     )
     
     # Box plot by loan status
-    for status in df['LoanStatus'].unique():
+    colors = [current_theme['accent_color'], current_theme['success_color']]
+    for i, status in enumerate(df['LoanStatus'].unique()):
         fig.add_trace(
             go.Box(y=df[df['LoanStatus']==status]['Income'], 
-                   name=status, boxmean=True),
+                   name=status, boxmean=True,
+                   marker_color=colors[i % len(colors)]),
             row=1, col=2
         )
     
-    fig.update_layout(height=400, showlegend=True,
-                      title_text="Income Analysis")
-    return fig
+    fig.update_layout(height=400, showlegend=True, title_text="Income Analysis")
+    return apply_plotly_theme(fig)
 
 def create_age_analysis(df):
     """Create age distribution analysis"""
@@ -306,12 +574,12 @@ def create_age_analysis(df):
     # Age histogram
     fig.add_trace(
         go.Histogram(x=df['Age'], nbinsx=30, name='Age',
-                     marker_color='#10B981', opacity=0.7),
+                     marker_color=current_theme['success_color'], opacity=0.7),
         row=1, col=1
     )
     
     # Scatter plot
-    colors = {'Accepted': '#EF4444', 'Not Accepted': '#3B82F6'}
+    colors = {'Accepted': current_theme['error_color'], 'Not Accepted': current_theme['accent_color']}
     for status in df['LoanStatus'].unique():
         subset = df[df['LoanStatus']==status]
         fig.add_trace(
@@ -323,7 +591,7 @@ def create_age_analysis(df):
         )
     
     fig.update_layout(height=400, title_text="Age Analysis")
-    return fig
+    return apply_plotly_theme(fig)
 
 def create_education_analysis(df):
     """Create education level analysis"""
@@ -337,21 +605,25 @@ def create_education_analysis(df):
     # Pie chart
     fig.add_trace(
         go.Pie(labels=edu_loan['EducationLevel'], values=edu_loan['count'],
-               hole=0.4, marker_colors=['#3B82F6', '#10B981', '#F59E0B']),
+               hole=0.4, marker_colors=[current_theme['accent_color'], 
+                                        current_theme['success_color'], 
+                                        current_theme['warning_color']]),
         row=1, col=1
     )
     
     # Bar chart
     fig.add_trace(
         go.Bar(x=edu_loan['EducationLevel'], y=edu_loan['rate'],
-               marker_color=['#3B82F6', '#10B981', '#F59E0B'],
+               marker_color=[current_theme['accent_color'], 
+                            current_theme['success_color'], 
+                            current_theme['warning_color']],
                text=[f"{r:.1f}%" for r in edu_loan['rate']],
                textposition='outside'),
         row=1, col=2
     )
     
     fig.update_layout(height=400, title_text="Education Analysis")
-    return fig
+    return apply_plotly_theme(fig)
 
 def create_family_analysis(df):
     """Create family size analysis"""
@@ -364,7 +636,7 @@ def create_family_analysis(df):
         x=family_loan['Family'],
         y=family_loan['count'],
         name='Total Customers',
-        marker_color='#3B82F6',
+        marker_color=current_theme['accent_color'],
         yaxis='y'
     ))
     
@@ -372,7 +644,7 @@ def create_family_analysis(df):
         x=family_loan['Family'],
         y=family_loan['rate'],
         name='Loan Acceptance Rate (%)',
-        marker_color='#EF4444',
+        marker_color=current_theme['error_color'],
         yaxis='y2',
         mode='lines+markers',
         line=dict(width=3)
@@ -386,7 +658,7 @@ def create_family_analysis(df):
         legend=dict(x=0.1, y=1.1, orientation='h')
     )
     
-    return fig
+    return apply_plotly_theme(fig)
 
 def create_correlation_heatmap(df):
     """Create correlation heatmap"""
@@ -405,7 +677,7 @@ def create_correlation_heatmap(df):
         zmid=0,
         text=np.round(corr_matrix.values, 2),
         texttemplate='%{text}',
-        textfont={"size": 10},
+        textfont={"size": 10, "color": current_theme['text_color']},
         hoverongaps=False
     ))
     
@@ -415,7 +687,7 @@ def create_correlation_heatmap(df):
         xaxis_tickangle=-45
     )
     
-    return fig
+    return apply_plotly_theme(fig)
 
 def create_mortgage_analysis(df):
     """Create mortgage analysis visualization"""
@@ -431,7 +703,7 @@ def create_mortgage_analysis(df):
     )
     
     # Scatter plot
-    colors = {'Accepted': '#EF4444', 'Not Accepted': '#3B82F6'}
+    colors = {'Accepted': current_theme['error_color'], 'Not Accepted': current_theme['accent_color']}
     for status in df['LoanStatus'].unique():
         subset = df[df['LoanStatus']==status]
         fig.add_trace(
@@ -443,7 +715,7 @@ def create_mortgage_analysis(df):
         )
     
     fig.update_layout(height=400, title_text="Mortgage Analysis")
-    return fig
+    return apply_plotly_theme(fig)
 
 def create_cc_spending_analysis(df):
     """Create credit card spending analysis"""
@@ -453,20 +725,22 @@ def create_cc_spending_analysis(df):
     # Histogram
     fig.add_trace(
         go.Histogram(x=df['CCAvg'], nbinsx=40, name='CC Spending',
-                     marker_color='#F59E0B', opacity=0.7),
+                     marker_color=current_theme['warning_color'], opacity=0.7),
         row=1, col=1
     )
     
     # Violin plot
-    for status in df['LoanStatus'].unique():
+    colors = [current_theme['accent_color'], current_theme['success_color']]
+    for i, status in enumerate(df['LoanStatus'].unique()):
         fig.add_trace(
             go.Violin(y=df[df['LoanStatus']==status]['CCAvg'],
-                      name=status, box_visible=True, meanline_visible=True),
+                      name=status, box_visible=True, meanline_visible=True,
+                      marker_color=colors[i % len(colors)]),
             row=1, col=2
         )
     
     fig.update_layout(height=400, title_text="Credit Card Spending Analysis")
-    return fig
+    return apply_plotly_theme(fig)
 
 def create_services_analysis(df):
     """Create banking services analysis"""
@@ -493,21 +767,21 @@ def create_services_analysis(df):
     # Bar chart for service usage
     fig.add_trace(
         go.Bar(x=service_df['Service'], y=service_df['Total Users'],
-               name='Total Users', marker_color='#3B82F6'),
+               name='Total Users', marker_color=current_theme['accent_color']),
         row=1, col=1
     )
     
     # Bar chart for loan acceptance rate
     fig.add_trace(
         go.Bar(x=service_df['Service'], y=service_df['Acceptance Rate'],
-               name='Loan Acceptance Rate (%)', marker_color='#10B981',
+               name='Loan Acceptance Rate (%)', marker_color=current_theme['success_color'],
                text=[f"{r:.1f}%" for r in service_df['Acceptance Rate']],
                textposition='outside'),
         row=1, col=2
     )
     
     fig.update_layout(height=400, title_text="Banking Services Analysis")
-    return fig
+    return apply_plotly_theme(fig)
 
 # -----------------------------------------------------------------------------
 # MACHINE LEARNING FUNCTIONS
@@ -597,7 +871,8 @@ def create_model_comparison(results):
     fig = go.Figure()
     
     metrics = ['Accuracy', 'Precision', 'Recall', 'F1 Score', 'ROC AUC']
-    colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+    colors = [current_theme['accent_color'], current_theme['success_color'], 
+              current_theme['warning_color'], current_theme['error_color'], '#8B5CF6']
     
     for i, metric in enumerate(metrics):
         fig.add_trace(go.Bar(
@@ -617,16 +892,16 @@ def create_model_comparison(results):
         legend=dict(orientation='h', y=1.1, x=0.3)
     )
     
-    return fig, metrics_df
+    return apply_plotly_theme(fig), metrics_df
 
 def create_roc_curves(results):
     """Create ROC curves for all models"""
     fig = go.Figure()
     
-    colors = {'Logistic Regression': '#3B82F6', 
-              'Random Forest': '#10B981',
-              'Gradient Boosting': '#F59E0B', 
-              'K-Nearest Neighbors': '#EF4444'}
+    colors = {'Logistic Regression': current_theme['accent_color'], 
+              'Random Forest': current_theme['success_color'],
+              'Gradient Boosting': current_theme['warning_color'], 
+              'K-Nearest Neighbors': current_theme['error_color']}
     
     for name, result in results.items():
         fpr, tpr, _ = roc_curve(result['y_test'], result['y_prob'])
@@ -653,7 +928,7 @@ def create_roc_curves(results):
         legend=dict(x=0.6, y=0.1)
     )
     
-    return fig
+    return apply_plotly_theme(fig)
 
 def create_confusion_matrices(results):
     """Create confusion matrices visualization"""
@@ -666,10 +941,6 @@ def create_confusion_matrices(results):
     
     for (name, result), (row, col) in zip(results.items(), positions):
         cm = result['confusion_matrix']
-        
-        # Create annotations
-        annotations = [[f'TN<br>{cm[0,0]}', f'FP<br>{cm[0,1]}'],
-                       [f'FN<br>{cm[1,0]}', f'TP<br>{cm[1,1]}']]
         
         fig.add_trace(
             go.Heatmap(
@@ -686,7 +957,7 @@ def create_confusion_matrices(results):
         )
     
     fig.update_layout(height=600, title_text="Confusion Matrices")
-    return fig
+    return apply_plotly_theme(fig)
 
 def create_feature_importance(feature_importance):
     """Create feature importance visualization"""
@@ -694,7 +965,7 @@ def create_feature_importance(feature_importance):
         x=feature_importance['Importance'],
         y=feature_importance['Feature'],
         orientation='h',
-        marker_color='#3B82F6'
+        marker_color=current_theme['accent_color']
     ))
     
     fig.update_layout(
@@ -705,7 +976,7 @@ def create_feature_importance(feature_importance):
         yaxis={'categoryorder': 'total ascending'}
     )
     
-    return fig
+    return apply_plotly_theme(fig)
 
 # -----------------------------------------------------------------------------
 # CUSTOMER SEGMENTATION
@@ -740,7 +1011,8 @@ def create_cluster_visualization(df):
                         subplot_titles=('Customer Segments (PCA)', 'Cluster Characteristics'))
     
     # PCA scatter plot
-    colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444']
+    colors = [current_theme['accent_color'], current_theme['success_color'], 
+              current_theme['warning_color'], current_theme['error_color']]
     for i in df['Cluster'].unique():
         subset = df[df['Cluster'] == i]
         fig.add_trace(
@@ -764,12 +1036,12 @@ def create_cluster_visualization(df):
     
     fig.add_trace(
         go.Bar(x=cluster_stats['Cluster'], y=cluster_stats['Income'],
-               name='Avg Income', marker_color='#3B82F6'),
+               name='Avg Income', marker_color=current_theme['accent_color']),
         row=1, col=2
     )
     
     fig.update_layout(height=400, title_text="Customer Segmentation Analysis")
-    return fig, df.groupby('Cluster').agg({
+    return apply_plotly_theme(fig), df.groupby('Cluster').agg({
         'Income': 'mean',
         'Age': 'mean',
         'CCAvg': 'mean',
@@ -781,16 +1053,26 @@ def create_cluster_visualization(df):
 # -----------------------------------------------------------------------------
 
 def main():
-    # Header
-    st.markdown('<h1 class="main-header">🏦 Universal Bank - Loan Analytics Dashboard</h1>', 
-                unsafe_allow_html=True)
-    st.markdown("---")
-    
-    # Sidebar for debugging (optional)
+    # Sidebar - Theme Toggle at the TOP
     with st.sidebar:
-        st.header("🔧 Settings")
+        st.markdown("### ⚙️ Settings")
         
-        if st.checkbox("Show Debug Info", value=False):
+        # Theme toggle button with icon
+        theme_icon = "🌙" if st.session_state.theme == 'light' else "☀️"
+        theme_text = "Switch to Dark Mode" if st.session_state.theme == 'light' else "Switch to Light Mode"
+        
+        if st.button(f"{theme_icon} {theme_text}", key="theme_toggle", use_container_width=True):
+            toggle_theme()
+            st.rerun()
+        
+        # Display current theme
+        current_theme_display = "🌞 Light Mode" if st.session_state.theme == 'light' else "🌙 Dark Mode"
+        st.markdown(f"**Current Theme:** {current_theme_display}")
+        
+        st.markdown("---")
+        
+        # Debug info toggle
+        if st.checkbox("🔧 Show Debug Info", value=False):
             st.write("**Current Directory:**", os.getcwd())
             st.write("**Files in Directory:**")
             try:
@@ -811,6 +1093,13 @@ def main():
                     st.error(f"Error reading file: {e}")
             else:
                 st.error("❌ UniversalBank.csv NOT found!")
+        
+        st.markdown("---")
+    
+    # Header
+    st.markdown('<h1 class="main-header">🏦 Universal Bank - Loan Analytics Dashboard</h1>', 
+                unsafe_allow_html=True)
+    st.markdown("---")
     
     # Load data
     try:
