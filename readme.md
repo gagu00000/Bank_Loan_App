@@ -55,6 +55,21 @@ A previous campaign achieved a **9.6% conversion rate**, and this dashboard help
 
 ---
 
+universalbank-dashboard/
+│
+├── 📄 app.py                 # Main Streamlit application
+├── 📄 requirements.txt       # Python dependencies
+├── 📄 README.md              # Project documentation
+├── 📄 UniversalBank.csv      # Data file (user provided)
+│
+├── 📁 .streamlit/            # Streamlit configuration
+│   └── config.toml
+│
+└── 📁 assets/                # Static assets (optional)
+    └── logo.png
+
+---
+
 ## 🚀 Installation
 
 ### Prerequisites
