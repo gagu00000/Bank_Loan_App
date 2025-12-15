@@ -4,235 +4,204 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import (accuracy_score, precision_score, recall_score, 
+                             f1_score, roc_auc_score, confusion_matrix, 
+                             roc_curve, classification_report)
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 import warnings
+import os
+
 warnings.filterwarnings('ignore')
 
-# ============================================
-# PAGE CONFIGURATION
-# ============================================
+# Page configuration
 st.set_page_config(
-    page_title="UniversalBank Analytics Dashboard",
+    page_title="Universal Bank - Loan Analytics Dashboard",
     page_icon="🏦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ============================================
-# THEME CONFIGURATION
-# ============================================
-def get_theme_colors(theme):
-    """Return color scheme based on selected theme"""
-    if theme == "Dark":
-        return {
-            'bg_color': '#0E1117',
-            'secondary_bg': '#262730',
-            'text_color': '#FAFAFA',
-            'primary_color': '#00D4FF',
-            'secondary_color': '#FF6B6B',
-            'accent_color': '#4ECDC4',
-            'grid_color': '#333333',
-            'card_bg': '#1E1E1E',
-            'plot_bg': '#0E1117',
-            'paper_bg': '#0E1117',
-            'colorscale': 'Viridis',
-            'positive_color': '#00D4FF',
-            'negative_color': '#FF6B6B',
-            'neutral_color': '#888888'
-        }
-    else:  # Light theme
-        return {
-            'bg_color': '#FFFFFF',
-            'secondary_bg': '#F0F2F6',
-            'text_color': '#1E1E1E',
-            'primary_color': '#1E88E5',
-            'secondary_color': '#E53935',
-            'accent_color': '#43A047',
-            'grid_color': '#E0E0E0',
-            'card_bg': '#FFFFFF',
-            'plot_bg': '#FFFFFF',
-            'paper_bg': '#FFFFFF',
-            'colorscale': 'Blues',
-            'positive_color': '#1E88E5',
-            'negative_color': '#E53935',
-            'neutral_color': '#757575'
-        }
-
-def apply_theme_to_fig(fig, colors):
-    """Apply theme colors to a plotly figure"""
-    fig.update_layout(
-        plot_bgcolor=colors['plot_bg'],
-        paper_bgcolor=colors['paper_bg'],
-        font=dict(color=colors['text_color'], size=12),
-        title_font=dict(color=colors['text_color'], size=16),
-        legend=dict(
-            bgcolor='rgba(0,0,0,0)',
-            font=dict(color=colors['text_color'])
-        ),
-        xaxis=dict(
-            gridcolor=colors['grid_color'],
-            linecolor=colors['grid_color'],
-            tickfont=dict(color=colors['text_color']),
-            title_font=dict(color=colors['text_color'])
-        ),
-        yaxis=dict(
-            gridcolor=colors['grid_color'],
-            linecolor=colors['grid_color'],
-            tickfont=dict(color=colors['text_color']),
-            title_font=dict(color=colors['text_color'])
-        )
-    )
-    return fig
-
-# ============================================
-# CUSTOM CSS FOR THEMES
-# ============================================
-def load_css(theme):
-    colors = get_theme_colors(theme)
-    css = f"""
+# Custom CSS for better styling
+st.markdown("""
     <style>
-        /* Main container */
-        .stApp {{
-            background-color: {colors['bg_color']};
-        }}
-        
-        /* Sidebar */
-        [data-testid="stSidebar"] {{
-            background-color: {colors['secondary_bg']};
-        }}
-        
-        /* Headers */
-        h1, h2, h3, h4, h5, h6 {{
-            color: {colors['text_color']} !important;
-        }}
-        
-        /* Text */
-        p, span, label {{
-            color: {colors['text_color']};
-        }}
-        
-        /* Metrics */
-        [data-testid="stMetricValue"] {{
-            color: {colors['primary_color']} !important;
-            font-size: 2rem !important;
-        }}
-        
-        [data-testid="stMetricLabel"] {{
-            color: {colors['text_color']} !important;
-        }}
-        
-        /* Cards */
-        .metric-card {{
-            background-color: {colors['card_bg']};
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border: 1px solid {colors['grid_color']};
-        }}
-        
-        /* Insight boxes */
-        .insight-box {{
-            background-color: {colors['secondary_bg']};
-            border-left: 4px solid {colors['primary_color']};
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 0 8px 8px 0;
-            color: {colors['text_color']};
-        }}
-        
-        /* Tabs */
-        .stTabs [data-baseweb="tab-list"] {{
-            gap: 8px;
-        }}
-        
-        .stTabs [data-baseweb="tab"] {{
-            background-color: {colors['secondary_bg']};
-            border-radius: 8px;
-            color: {colors['text_color']};
-            padding: 10px 20px;
-        }}
-        
-        .stTabs [aria-selected="true"] {{
-            background-color: {colors['primary_color']};
-            color: white;
-        }}
-        
-        /* Expander */
-        .streamlit-expanderHeader {{
-            background-color: {colors['secondary_bg']};
-            color: {colors['text_color']} !important;
-        }}
-        
-        /* Selectbox */
-        .stSelectbox > div > div {{
-            background-color: {colors['secondary_bg']};
-            color: {colors['text_color']};
-        }}
-        
-        /* Dataframe */
-        .dataframe {{
-            color: {colors['text_color']} !important;
-        }}
-        
-        /* Main title */
-        .main-title {{
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: {colors['primary_color']};
-            text-align: center;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }}
-        
-        /* Subtitle */
-        .subtitle {{
-            font-size: 1.2rem;
-            color: {colors['neutral_color']};
-            text-align: center;
-            margin-bottom: 2rem;
-        }}
-        
-        /* KPI Container */
-        .kpi-container {{
-            display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin: 20px 0;
-        }}
-        
-        /* Section header */
-        .section-header {{
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: {colors['text_color']};
-            border-bottom: 2px solid {colors['primary_color']};
-            padding-bottom: 10px;
-            margin: 20px 0;
-        }}
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #1E3A8A;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    .sub-header {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #3B82F6;
+        margin-top: 1rem;
+    }
+    .metric-card {
+        background-color: #F0F9FF;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border-left: 4px solid #3B82F6;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2rem;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 3rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
     </style>
-    """
-    return css
+""", unsafe_allow_html=True)
 
-# ============================================
-# DATA LOADING
-# ============================================
+# -----------------------------------------------------------------------------
+# DATA LOADING FUNCTION - FIXED VERSION
+# -----------------------------------------------------------------------------
+
 @st.cache_data
 def load_data():
-    """Load and preprocess the data"""
-    df = pd.read_csv('UniversalBank.csv')
+    """Load and preprocess the data with multiple fallback approaches"""
     
-    # Clean column names
-    df.columns = df.columns.str.strip()
+    # Define the correct column names
+    column_names = ['ID', 'Age', 'Experience', 'Income', 'ZIPCode', 'Family', 
+                    'CCAvg', 'Education', 'Mortgage', 'PersonalLoan', 
+                    'SecuritiesAccount', 'CDAccount', 'Online', 'CreditCard']
     
-    # Rename columns for consistency
-    column_mapping = {
-        'ZIP Code': 'ZIPCode',
-        'Personal Loan': 'PersonalLoan',
-        'Securities Account': 'SecuritiesAccount',
-        'CD Account': 'CDAccount',
-        'CreditCard': 'CreditCard'
-    }
-    df.rename(columns=column_mapping, inplace=True)
+    df = None
+    
+    # Check if file exists
+    if not os.path.exists('UniversalBank.csv'):
+        raise FileNotFoundError("UniversalBank.csv not found in the current directory")
+    
+    # Read the file content to understand its structure
+    with open('UniversalBank.csv', 'r', encoding='utf-8') as f:
+        content = f.read()
+        lines = content.strip().split('\n')
+    
+    # Approach 1: Check if it's a standard CSV format
+    try:
+        df_test = pd.read_csv('UniversalBank.csv', nrows=2)
+        if 'Income' in df_test.columns or 'income' in df_test.columns.str.lower():
+            # Standard format detected
+            df = pd.read_csv('UniversalBank.csv')
+            df.columns = df.columns.str.strip()
+            
+            # Rename columns for consistency
+            column_mapping = {
+                'ZIP Code': 'ZIPCode',
+                'Personal Loan': 'PersonalLoan',
+                'Securities Account': 'SecuritiesAccount',
+                'CD Account': 'CDAccount',
+                'ZIP.Code': 'ZIPCode',
+                'Personal.Loan': 'PersonalLoan',
+                'Securities.Account': 'SecuritiesAccount',
+                'CD.Account': 'CDAccount'
+            }
+            df.rename(columns=column_mapping, inplace=True)
+    except:
+        pass
+    
+    # Approach 2: Handle the problematic format with "Universal Bank Customer Profiles"
+    if df is None or 'Income' not in df.columns:
+        try:
+            # Parse lines manually
+            data_rows = []
+            
+            for line in lines:
+                # Split by comma
+                parts = line.split(',')
+                
+                # Find numeric values (the actual data)
+                numeric_values = []
+                for part in parts:
+                    part = part.strip().strip('"').strip("'")
+                    if part:
+                        try:
+                            # Try to convert to float
+                            val = float(part)
+                            numeric_values.append(val)
+                        except ValueError:
+                            # Skip non-numeric values like "Universal Bank Customer Profiles"
+                            continue
+                
+                # If we have exactly 14 numeric values, it's a data row
+                if len(numeric_values) == 14:
+                    data_rows.append(numeric_values)
+                elif len(numeric_values) > 14:
+                    # Take the last 14 values (data usually at the end)
+                    data_rows.append(numeric_values[-14:])
+            
+            if len(data_rows) > 0:
+                df = pd.DataFrame(data_rows, columns=column_names)
+        except Exception as e:
+            pass
+    
+    # Approach 3: Try reading with skiprows
+    if df is None or 'Income' not in df.columns:
+        try:
+            for skip in range(5):  # Try skipping 0-4 rows
+                df_temp = pd.read_csv('UniversalBank.csv', skiprows=skip, header=None)
+                df_temp = df_temp.dropna(axis=1, how='all')
+                
+                if len(df_temp.columns) >= 14:
+                    # Check if first row looks like data (numeric)
+                    try:
+                        first_val = float(df_temp.iloc[0, 0])
+                        # Looks like data, use it
+                        df = df_temp.iloc[:, :14].copy()
+                        df.columns = column_names
+                        break
+                    except:
+                        # First row might be header, try next skip value
+                        continue
+        except:
+            pass
+    
+    # Approach 4: Extract data using regex pattern matching
+    if df is None or 'Income' not in df.columns:
+        try:
+            import re
+            data_rows = []
+            
+            # Pattern to match rows of numbers separated by commas
+            for line in lines:
+                # Remove any text that's not numbers, commas, dots, or minus signs
+                numbers = re.findall(r'-?\d+\.?\d*', line)
+                if len(numbers) >= 14:
+                    data_rows.append([float(n) for n in numbers[:14]])
+            
+            if len(data_rows) > 0:
+                df = pd.DataFrame(data_rows, columns=column_names)
+        except:
+            pass
+    
+    # Verify we have valid data
+    if df is None:
+        raise ValueError("Could not parse the CSV file. Please check the file format.")
+    
+    if 'Income' not in df.columns:
+        raise ValueError(f"'Income' column not found. Available columns: {list(df.columns)}")
+    
+    # Ensure numeric types for all columns
+    for col in column_names:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    # Drop rows with NaN in critical columns
+    critical_cols = ['Income', 'Age', 'PersonalLoan']
+    existing_critical = [col for col in critical_cols if col in df.columns]
+    df = df.dropna(subset=existing_critical)
+    
+    # Reset index
+    df = df.reset_index(drop=True)
     
     # Create derived columns
     df['IncomeGroup'] = pd.cut(df['Income'], 
@@ -257,1170 +226,880 @@ def load_data():
     
     return df
 
-# ============================================
+# -----------------------------------------------------------------------------
 # VISUALIZATION FUNCTIONS
-# ============================================
+# -----------------------------------------------------------------------------
 
-def create_income_histogram(df, colors):
-    """Visualization 1a: Income distribution histogram by loan status"""
-    fig = px.histogram(
-        df,
-        x='Income',
-        color='LoanStatus',
-        barmode='overlay',
-        nbins=40,
-        color_discrete_map={
-            'Not Accepted': colors['primary_color'],
-            'Accepted': colors['secondary_color']
-        },
-        labels={'Income': 'Annual Income ($000)', 'count': 'Number of Customers'},
-        title='📊 Income Distribution by Personal Loan Status',
-        opacity=0.7
+def create_kpi_metrics(df):
+    """Create KPI metrics cards"""
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        st.metric(
+            label="📊 Total Customers",
+            value=f"{len(df):,}",
+            delta=None
+        )
+    
+    with col2:
+        loan_rate = (df['PersonalLoan'].sum() / len(df)) * 100
+        st.metric(
+            label="💳 Loan Acceptance Rate",
+            value=f"{loan_rate:.1f}%",
+            delta=f"{df['PersonalLoan'].sum()} customers"
+        )
+    
+    with col3:
+        avg_income = df['Income'].mean()
+        st.metric(
+            label="💰 Average Income",
+            value=f"${avg_income:,.0f}K",
+            delta=None
+        )
+    
+    with col4:
+        avg_age = df['Age'].mean()
+        st.metric(
+            label="👥 Average Age",
+            value=f"{avg_age:.1f} years",
+            delta=None
+        )
+    
+    with col5:
+        cc_avg = df['CCAvg'].mean()
+        st.metric(
+            label="💳 Avg CC Spending",
+            value=f"${cc_avg:,.2f}K/month",
+            delta=None
+        )
+
+def create_income_distribution(df):
+    """Create income distribution visualization"""
+    fig = make_subplots(rows=1, cols=2, 
+                        subplot_titles=('Income Distribution', 'Income by Loan Status'),
+                        specs=[[{"type": "histogram"}, {"type": "box"}]])
+    
+    # Histogram
+    fig.add_trace(
+        go.Histogram(x=df['Income'], nbinsx=50, name='Income Distribution',
+                     marker_color='#3B82F6', opacity=0.7),
+        row=1, col=1
     )
+    
+    # Box plot by loan status
+    for status in df['LoanStatus'].unique():
+        fig.add_trace(
+            go.Box(y=df[df['LoanStatus']==status]['Income'], 
+                   name=status, boxmean=True),
+            row=1, col=2
+        )
+    
+    fig.update_layout(height=400, showlegend=True,
+                      title_text="Income Analysis")
+    return fig
+
+def create_age_analysis(df):
+    """Create age distribution analysis"""
+    fig = make_subplots(rows=1, cols=2,
+                        subplot_titles=('Age Distribution', 'Age vs Income by Loan Status'))
+    
+    # Age histogram
+    fig.add_trace(
+        go.Histogram(x=df['Age'], nbinsx=30, name='Age',
+                     marker_color='#10B981', opacity=0.7),
+        row=1, col=1
+    )
+    
+    # Scatter plot
+    colors = {'Accepted': '#EF4444', 'Not Accepted': '#3B82F6'}
+    for status in df['LoanStatus'].unique():
+        subset = df[df['LoanStatus']==status]
+        fig.add_trace(
+            go.Scatter(x=subset['Age'], y=subset['Income'],
+                       mode='markers', name=status,
+                       marker=dict(color=colors.get(status, '#888888'), 
+                                   opacity=0.5, size=5)),
+            row=1, col=2
+        )
+    
+    fig.update_layout(height=400, title_text="Age Analysis")
+    return fig
+
+def create_education_analysis(df):
+    """Create education level analysis"""
+    edu_loan = df.groupby('EducationLevel')['PersonalLoan'].agg(['sum', 'count']).reset_index()
+    edu_loan['rate'] = (edu_loan['sum'] / edu_loan['count']) * 100
+    
+    fig = make_subplots(rows=1, cols=2,
+                        subplot_titles=('Customers by Education', 'Loan Acceptance by Education'),
+                        specs=[[{"type": "pie"}, {"type": "bar"}]])
+    
+    # Pie chart
+    fig.add_trace(
+        go.Pie(labels=edu_loan['EducationLevel'], values=edu_loan['count'],
+               hole=0.4, marker_colors=['#3B82F6', '#10B981', '#F59E0B']),
+        row=1, col=1
+    )
+    
+    # Bar chart
+    fig.add_trace(
+        go.Bar(x=edu_loan['EducationLevel'], y=edu_loan['rate'],
+               marker_color=['#3B82F6', '#10B981', '#F59E0B'],
+               text=[f"{r:.1f}%" for r in edu_loan['rate']],
+               textposition='outside'),
+        row=1, col=2
+    )
+    
+    fig.update_layout(height=400, title_text="Education Analysis")
+    return fig
+
+def create_family_analysis(df):
+    """Create family size analysis"""
+    family_loan = df.groupby('Family')['PersonalLoan'].agg(['sum', 'count']).reset_index()
+    family_loan['rate'] = (family_loan['sum'] / family_loan['count']) * 100
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=family_loan['Family'],
+        y=family_loan['count'],
+        name='Total Customers',
+        marker_color='#3B82F6',
+        yaxis='y'
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=family_loan['Family'],
+        y=family_loan['rate'],
+        name='Loan Acceptance Rate (%)',
+        marker_color='#EF4444',
+        yaxis='y2',
+        mode='lines+markers',
+        line=dict(width=3)
+    ))
     
     fig.update_layout(
-        xaxis_title='Annual Income ($000)',
-        yaxis_title='Number of Customers',
-        legend_title='Loan Status',
-        bargap=0.1,
-        hovermode='x unified'
+        title='Family Size Analysis',
+        yaxis=dict(title='Number of Customers', side='left'),
+        yaxis2=dict(title='Loan Acceptance Rate (%)', side='right', overlaying='y'),
+        height=400,
+        legend=dict(x=0.1, y=1.1, orientation='h')
     )
     
-    # Add animation
-    fig.update_traces(
-        hovertemplate='<b>Income:</b> $%{x}K<br><b>Count:</b> %{y}<extra></extra>'
-    )
+    return fig
+
+def create_correlation_heatmap(df):
+    """Create correlation heatmap"""
+    numeric_cols = ['Age', 'Experience', 'Income', 'Family', 'CCAvg', 
+                    'Education', 'Mortgage', 'PersonalLoan', 
+                    'SecuritiesAccount', 'CDAccount', 'Online', 'CreditCard']
     
-    return apply_theme_to_fig(fig, colors)
-
-
-def create_age_histogram(df, colors):
-    """Visualization 1b: Age distribution histogram by loan status"""
-    fig = px.histogram(
-        df,
-        x='Age',
-        color='LoanStatus',
-        barmode='overlay',
-        nbins=30,
-        color_discrete_map={
-            'Not Accepted': colors['primary_color'],
-            'Accepted': colors['secondary_color']
-        },
-        labels={'Age': 'Customer Age (Years)', 'count': 'Number of Customers'},
-        title='📊 Age Distribution by Personal Loan Status',
-        opacity=0.7
-    )
+    existing_cols = [col for col in numeric_cols if col in df.columns]
+    corr_matrix = df[existing_cols].corr()
+    
+    fig = go.Figure(data=go.Heatmap(
+        z=corr_matrix.values,
+        x=corr_matrix.columns,
+        y=corr_matrix.columns,
+        colorscale='RdBu',
+        zmid=0,
+        text=np.round(corr_matrix.values, 2),
+        texttemplate='%{text}',
+        textfont={"size": 10},
+        hoverongaps=False
+    ))
     
     fig.update_layout(
-        xaxis_title='Customer Age (Years)',
-        yaxis_title='Number of Customers',
-        legend_title='Loan Status',
-        bargap=0.1
+        title='Feature Correlation Matrix',
+        height=600,
+        xaxis_tickangle=-45
     )
     
-    return apply_theme_to_fig(fig, colors)
+    return fig
 
+def create_mortgage_analysis(df):
+    """Create mortgage analysis visualization"""
+    fig = make_subplots(rows=1, cols=2,
+                        subplot_titles=('Mortgage Distribution', 'Mortgage vs Income by Loan Status'))
+    
+    # Mortgage histogram (excluding zeros for better visualization)
+    mortgage_data = df[df['Mortgage'] > 0]['Mortgage']
+    fig.add_trace(
+        go.Histogram(x=mortgage_data, nbinsx=30, name='Mortgage',
+                     marker_color='#8B5CF6', opacity=0.7),
+        row=1, col=1
+    )
+    
+    # Scatter plot
+    colors = {'Accepted': '#EF4444', 'Not Accepted': '#3B82F6'}
+    for status in df['LoanStatus'].unique():
+        subset = df[df['LoanStatus']==status]
+        fig.add_trace(
+            go.Scatter(x=subset['Income'], y=subset['Mortgage'],
+                       mode='markers', name=status,
+                       marker=dict(color=colors.get(status, '#888888'), 
+                                   opacity=0.5, size=5)),
+            row=1, col=2
+        )
+    
+    fig.update_layout(height=400, title_text="Mortgage Analysis")
+    return fig
 
-def create_ccavg_income_scatter(df, colors):
-    """Visualization 2: CCAvg vs Income scatter plot"""
-    fig = px.scatter(
-        df,
-        x='Income',
-        y='CCAvg',
-        color='LoanStatus',
-        color_discrete_map={
-            'Not Accepted': colors['primary_color'],
-            'Accepted': colors['secondary_color']
-        },
-        trendline='ols',
-        hover_data=['Age', 'EducationLevel', 'Family'],
-        labels={
-            'Income': 'Annual Income ($000)',
-            'CCAvg': 'Avg. Monthly CC Spending ($000)'
-        },
-        title='💳 Credit Card Spending vs Income by Loan Status',
-        opacity=0.6
+def create_cc_spending_analysis(df):
+    """Create credit card spending analysis"""
+    fig = make_subplots(rows=1, cols=2,
+                        subplot_titles=('CC Spending Distribution', 'CC Spending by Loan Status'))
+    
+    # Histogram
+    fig.add_trace(
+        go.Histogram(x=df['CCAvg'], nbinsx=40, name='CC Spending',
+                     marker_color='#F59E0B', opacity=0.7),
+        row=1, col=1
     )
     
-    fig.update_traces(
-        marker=dict(size=8, line=dict(width=1, color='white')),
-        hovertemplate='<b>Income:</b> $%{x}K<br><b>CC Avg:</b> $%{y}K<br><b>Age:</b> %{customdata[0]}<extra></extra>'
-    )
+    # Violin plot
+    for status in df['LoanStatus'].unique():
+        fig.add_trace(
+            go.Violin(y=df[df['LoanStatus']==status]['CCAvg'],
+                      name=status, box_visible=True, meanline_visible=True),
+            row=1, col=2
+        )
     
-    fig.update_layout(
-        xaxis_title='Annual Income ($000)',
-        yaxis_title='Monthly CC Spending ($000)',
-        legend_title='Loan Status'
-    )
-    
-    return apply_theme_to_fig(fig, colors)
+    fig.update_layout(height=400, title_text="Credit Card Spending Analysis")
+    return fig
 
+def create_services_analysis(df):
+    """Create banking services analysis"""
+    services = ['SecuritiesAccount', 'CDAccount', 'Online', 'CreditCard']
+    existing_services = [s for s in services if s in df.columns]
+    
+    service_data = []
+    for service in existing_services:
+        total = df[service].sum()
+        loan_accepters = df[df['PersonalLoan']==1][service].sum()
+        rate = (loan_accepters / total * 100) if total > 0 else 0
+        service_data.append({
+            'Service': service,
+            'Total Users': total,
+            'Loan Accepters': loan_accepters,
+            'Acceptance Rate': rate
+        })
+    
+    service_df = pd.DataFrame(service_data)
+    
+    fig = make_subplots(rows=1, cols=2,
+                        subplot_titles=('Service Usage', 'Loan Acceptance by Service'))
+    
+    # Bar chart for service usage
+    fig.add_trace(
+        go.Bar(x=service_df['Service'], y=service_df['Total Users'],
+               name='Total Users', marker_color='#3B82F6'),
+        row=1, col=1
+    )
+    
+    # Bar chart for loan acceptance rate
+    fig.add_trace(
+        go.Bar(x=service_df['Service'], y=service_df['Acceptance Rate'],
+               name='Loan Acceptance Rate (%)', marker_color='#10B981',
+               text=[f"{r:.1f}%" for r in service_df['Acceptance Rate']],
+               textposition='outside'),
+        row=1, col=2
+    )
+    
+    fig.update_layout(height=400, title_text="Banking Services Analysis")
+    return fig
 
-def create_zipcode_analysis(df, colors):
-    """Visualization 3: ZIP Code vs Income vs Personal Loan"""
-    # Group by ZIP prefix
-    zip_analysis = df.groupby('ZIPPrefix').agg({
-        'Income': 'mean',
-        'PersonalLoan': ['sum', 'count', 'mean'],
-        'ID': 'count'
-    }).reset_index()
-    
-    zip_analysis.columns = ['ZIPPrefix', 'AvgIncome', 'LoansAccepted', 
-                            'TotalCustomers', 'ConvRate', 'Count']
-    
-    zip_analysis['ConvRatePercent'] = zip_analysis['ConvRate'] * 100
-    
-    # Filter for ZIP codes with sufficient data
-    zip_analysis = zip_analysis[zip_analysis['TotalCustomers'] >= 10]
-    
-    fig = px.scatter(
-        zip_analysis,
-        x='ZIPPrefix',
-        y='AvgIncome',
-        size='TotalCustomers',
-        color='ConvRatePercent',
-        color_continuous_scale='RdYlGn',
-        hover_data=['LoansAccepted', 'TotalCustomers', 'ConvRatePercent'],
-        labels={
-            'ZIPPrefix': 'ZIP Code Prefix',
-            'AvgIncome': 'Average Income ($000)',
-            'ConvRatePercent': 'Conversion Rate (%)'
-        },
-        title='📍 ZIP Code Analysis: Income vs Conversion Rate'
-    )
-    
-    fig.update_traces(
-        hovertemplate='<b>ZIP:</b> %{x}<br><b>Avg Income:</b> $%{y:.1f}K<br>' +
-                      '<b>Customers:</b> %{customdata[1]}<br><b>Conv Rate:</b> %{customdata[2]:.1f}%<extra></extra>'
-    )
-    
-    fig.update_layout(
-        xaxis_title='ZIP Code Prefix (3-digit)',
-        yaxis_title='Average Income ($000)',
-        coloraxis_colorbar_title='Conv Rate (%)'
-    )
-    
-    return apply_theme_to_fig(fig, colors)
+# -----------------------------------------------------------------------------
+# MACHINE LEARNING FUNCTIONS
+# -----------------------------------------------------------------------------
 
-
-def create_correlation_heatmap(df, colors):
-    """Visualization 4: Correlation heatmap for all numerical columns"""
-    numerical_cols = ['Age', 'Experience', 'Income', 'Family', 'CCAvg', 
-                      'Education', 'Mortgage', 'PersonalLoan', 
-                      'SecuritiesAccount', 'CDAccount', 'Online', 'CreditCard']
+@st.cache_resource
+def train_models(df):
+    """Train multiple ML models"""
+    # Prepare features
+    feature_cols = ['Age', 'Experience', 'Income', 'Family', 'CCAvg', 
+                    'Education', 'Mortgage', 'SecuritiesAccount', 
+                    'CDAccount', 'Online', 'CreditCard']
     
-    corr_matrix = df[numerical_cols].corr()
+    existing_features = [col for col in feature_cols if col in df.columns]
     
-    # Create custom colorscale based on theme
-    if colors['bg_color'] == '#0E1117':  # Dark theme
-        colorscale = [
-            [0, '#FF6B6B'],
-            [0.5, '#1E1E1E'],
-            [1, '#00D4FF']
-        ]
-    else:  # Light theme
-        colorscale = [
-            [0, '#E53935'],
-            [0.5, '#FFFFFF'],
-            [1, '#1E88E5']
-        ]
+    X = df[existing_features].copy()
+    y = df['PersonalLoan'].copy()
     
-    fig = px.imshow(
-        corr_matrix,
-        x=numerical_cols,
-        y=numerical_cols,
-        color_continuous_scale=colorscale,
-        zmin=-1,
-        zmax=1,
-        text_auto='.2f',
-        labels=dict(color='Correlation'),
-        title='🔥 Correlation Heatmap - All Variables'
+    # Handle any remaining NaN values
+    X = X.fillna(X.median())
+    
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
     
-    fig.update_layout(
-        xaxis_title='',
-        yaxis_title='',
-        width=800,
-        height=700
-    )
+    # Scale features
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
     
-    fig.update_traces(
-        hovertemplate='<b>%{x}</b> vs <b>%{y}</b><br>Correlation: %{z:.3f}<extra></extra>'
-    )
-    
-    return apply_theme_to_fig(fig, colors)
-
-
-def create_family_income_analysis(df, colors):
-    """Visualization 5: Family Size vs Income vs Mortgage/CCAvg vs Personal Loan"""
-    fig = px.scatter(
-        df,
-        x='Family',
-        y='Income',
-        size='CCAvg',
-        color='LoanStatus',
-        color_discrete_map={
-            'Not Accepted': colors['primary_color'],
-            'Accepted': colors['secondary_color']
-        },
-        hover_data=['Mortgage', 'CCAvg', 'EducationLevel'],
-        labels={
-            'Family': 'Family Size',
-            'Income': 'Annual Income ($000)',
-            'CCAvg': 'CC Spending'
-        },
-        title='👨‍👩‍👧‍👦 Family Size vs Income (Bubble Size = CC Spending)',
-        animation_frame='EducationLevel' if len(df['EducationLevel'].unique()) > 1 else None,
-        opacity=0.7
-    )
-    
-    fig.update_layout(
-        xaxis=dict(tickmode='linear', tick0=1, dtick=1),
-        xaxis_title='Family Size',
-        yaxis_title='Annual Income ($000)',
-        legend_title='Loan Status'
-    )
-    
-    return apply_theme_to_fig(fig, colors)
-
-
-def create_family_mortgage_heatmap(df, colors):
-    """Visualization 5b: Heatmap for Family vs Income conversion rates"""
-    df_temp = df.copy()
-    df_temp['IncomeRange'] = pd.cut(
-        df_temp['Income'],
-        bins=[0, 50, 100, 150, 200, 250],
-        labels=['<$50K', '$50-100K', '$100-150K', '$150-200K', '>$200K']
-    )
-    
-    heatmap_data = df_temp.pivot_table(
-        values='PersonalLoan',
-        index='Family',
-        columns='IncomeRange',
-        aggfunc='mean'
-    ) * 100
-    
-    fig = px.imshow(
-        heatmap_data,
-        text_auto='.1f',
-        color_continuous_scale='RdYlGn',
-        labels=dict(x='Income Range', y='Family Size', color='Conv Rate (%)'),
-        title='📈 Conversion Rate by Family Size & Income'
-    )
-    
-    fig.update_traces(
-        hovertemplate='<b>Family Size:</b> %{y}<br><b>Income:</b> %{x}<br><b>Conv Rate:</b> %{z:.1f}%<extra></extra>'
-    )
-    
-    return apply_theme_to_fig(fig, colors)
-
-
-def create_product_analysis(df, colors):
-    """Visualization 6: Securities vs CD vs Credit Card vs Personal Loan"""
-    products = {
-        'Securities Account': 'SecuritiesAccount',
-        'CD Account': 'CDAccount',
-        'Credit Card': 'CreditCard',
-        'Online Banking': 'Online'
+    # Train models
+    models = {
+        'Logistic Regression': LogisticRegression(random_state=42, max_iter=1000),
+        'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
+        'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42),
+        'K-Nearest Neighbors': KNeighborsClassifier(n_neighbors=5)
     }
     
-    results = []
-    for product_name, col_name in products.items():
-        for val in [0, 1]:
-            subset = df[df[col_name] == val]
-            conv_rate = subset['PersonalLoan'].mean() * 100
-            results.append({
-                'Product': product_name,
-                'HasProduct': 'Yes' if val == 1 else 'No',
-                'ConversionRate': conv_rate,
-                'CustomerCount': len(subset)
-            })
+    results = {}
+    trained_models = {}
     
-    result_df = pd.DataFrame(results)
+    for name, model in models.items():
+        # Use scaled data for KNN and Logistic Regression
+        if name in ['K-Nearest Neighbors', 'Logistic Regression']:
+            model.fit(X_train_scaled, y_train)
+            y_pred = model.predict(X_test_scaled)
+            y_prob = model.predict_proba(X_test_scaled)[:, 1]
+        else:
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            y_prob = model.predict_proba(X_test)[:, 1]
+        
+        results[name] = {
+            'accuracy': accuracy_score(y_test, y_pred),
+            'precision': precision_score(y_test, y_pred),
+            'recall': recall_score(y_test, y_pred),
+            'f1': f1_score(y_test, y_pred),
+            'roc_auc': roc_auc_score(y_test, y_prob),
+            'confusion_matrix': confusion_matrix(y_test, y_pred),
+            'y_test': y_test,
+            'y_pred': y_pred,
+            'y_prob': y_prob
+        }
+        
+        trained_models[name] = model
     
-    fig = px.bar(
-        result_df,
-        x='Product',
-        y='ConversionRate',
-        color='HasProduct',
-        barmode='group',
-        text='ConversionRate',
-        color_discrete_map={
-            'No': colors['primary_color'],
-            'Yes': colors['secondary_color']
-        },
-        labels={
-            'ConversionRate': 'Conversion Rate (%)',
-            'HasProduct': 'Has Product'
-        },
-        title='🏦 Conversion Rate by Product Ownership'
-    )
+    # Get feature importance from Random Forest
+    feature_importance = pd.DataFrame({
+        'Feature': existing_features,
+        'Importance': trained_models['Random Forest'].feature_importances_
+    }).sort_values('Importance', ascending=False)
     
-    fig.update_traces(
-        texttemplate='%{text:.1f}%',
-        textposition='outside',
-        hovertemplate='<b>%{x}</b><br>Conv Rate: %{y:.1f}%<extra></extra>'
-    )
+    return results, trained_models, feature_importance, scaler, X_test, y_test, existing_features
+
+def create_model_comparison(results):
+    """Create model comparison visualization"""
+    metrics_df = pd.DataFrame({
+        'Model': list(results.keys()),
+        'Accuracy': [r['accuracy'] for r in results.values()],
+        'Precision': [r['precision'] for r in results.values()],
+        'Recall': [r['recall'] for r in results.values()],
+        'F1 Score': [r['f1'] for r in results.values()],
+        'ROC AUC': [r['roc_auc'] for r in results.values()]
+    })
+    
+    fig = go.Figure()
+    
+    metrics = ['Accuracy', 'Precision', 'Recall', 'F1 Score', 'ROC AUC']
+    colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+    
+    for i, metric in enumerate(metrics):
+        fig.add_trace(go.Bar(
+            name=metric,
+            x=metrics_df['Model'],
+            y=metrics_df[metric],
+            marker_color=colors[i],
+            text=[f'{v:.3f}' for v in metrics_df[metric]],
+            textposition='outside'
+        ))
     
     fig.update_layout(
-        xaxis_title='Bank Product',
-        yaxis_title='Conversion Rate (%)',
-        legend_title='Has Product'
+        title='Model Performance Comparison',
+        barmode='group',
+        height=500,
+        yaxis_range=[0, 1.1],
+        legend=dict(orientation='h', y=1.1, x=0.3)
     )
     
-    return apply_theme_to_fig(fig, colors)
+    return fig, metrics_df
 
-
-def create_product_combination_chart(df, colors):
-    """Visualization 6b: Product combination analysis"""
-    # Calculate conversion for key combinations
-    combinations = []
+def create_roc_curves(results):
+    """Create ROC curves for all models"""
+    fig = go.Figure()
     
-    # CD Account holders
-    cd_holders = df[df['CDAccount'] == 1]['PersonalLoan'].mean() * 100
-    combinations.append({'Combination': 'CD Account = Yes', 'ConvRate': cd_holders, 'Count': len(df[df['CDAccount'] == 1])})
+    colors = {'Logistic Regression': '#3B82F6', 
+              'Random Forest': '#10B981',
+              'Gradient Boosting': '#F59E0B', 
+              'K-Nearest Neighbors': '#EF4444'}
     
-    # CD + Securities
-    cd_sec = df[(df['CDAccount'] == 1) & (df['SecuritiesAccount'] == 1)]['PersonalLoan'].mean() * 100
-    combinations.append({'Combination': 'CD + Securities', 'ConvRate': cd_sec, 'Count': len(df[(df['CDAccount'] == 1) & (df['SecuritiesAccount'] == 1)])})
+    for name, result in results.items():
+        fpr, tpr, _ = roc_curve(result['y_test'], result['y_prob'])
+        fig.add_trace(go.Scatter(
+            x=fpr, y=tpr,
+            name=f"{name} (AUC={result['roc_auc']:.3f})",
+            mode='lines',
+            line=dict(color=colors.get(name, '#888888'), width=2)
+        ))
     
-    # Securities only
-    sec_only = df[df['SecuritiesAccount'] == 1]['PersonalLoan'].mean() * 100
-    combinations.append({'Combination': 'Securities = Yes', 'ConvRate': sec_only, 'Count': len(df[df['SecuritiesAccount'] == 1])})
+    # Add diagonal line
+    fig.add_trace(go.Scatter(
+        x=[0, 1], y=[0, 1],
+        mode='lines',
+        name='Random Classifier',
+        line=dict(color='gray', dash='dash')
+    ))
     
-    # Credit Card only
-    cc_only = df[df['CreditCard'] == 1]['PersonalLoan'].mean() * 100
-    combinations.append({'Combination': 'Credit Card = Yes', 'ConvRate': cc_only, 'Count': len(df[df['CreditCard'] == 1])})
-    
-    # Online only
-    online_only = df[df['Online'] == 1]['PersonalLoan'].mean() * 100
-    combinations.append({'Combination': 'Online = Yes', 'ConvRate': online_only, 'Count': len(df[df['Online'] == 1])})
-    
-    # No products
-    no_products = df[(df['CDAccount'] == 0) & (df['SecuritiesAccount'] == 0) & 
-                     (df['CreditCard'] == 0) & (df['Online'] == 0)]['PersonalLoan'].mean() * 100
-    combinations.append({'Combination': 'No Products', 'ConvRate': no_products, 
-                        'Count': len(df[(df['CDAccount'] == 0) & (df['SecuritiesAccount'] == 0) & 
-                                       (df['CreditCard'] == 0) & (df['Online'] == 0)])})
-    
-    combo_df = pd.DataFrame(combinations)
-    combo_df = combo_df.sort_values('ConvRate', ascending=True)
-    
-    fig = px.bar(
-        combo_df,
-        y='Combination',
-        x='ConvRate',
-        orientation='h',
-        text='ConvRate',
-        color='ConvRate',
-        color_continuous_scale='RdYlGn',
-        labels={'ConvRate': 'Conversion Rate (%)', 'Combination': 'Product Combination'},
-        title='🎯 Conversion Rate by Product Combination'
+    fig.update_layout(
+        title='ROC Curves Comparison',
+        xaxis_title='False Positive Rate',
+        yaxis_title='True Positive Rate',
+        height=500,
+        legend=dict(x=0.6, y=0.1)
     )
     
-    fig.update_traces(
-        texttemplate='%{text:.1f}%',
-        textposition='outside'
-    )
-    
-    # Add baseline reference line
-    baseline = df['PersonalLoan'].mean() * 100
-    fig.add_vline(x=baseline, line_dash="dash", line_color=colors['text_color'],
-                  annotation_text=f"Baseline: {baseline:.1f}%")
-    
-    return apply_theme_to_fig(fig, colors)
+    return fig
 
-
-def create_box_plots(df, colors):
-    """Visualization 7: Box and whisker plots for Income, CCAvg"""
-    fig = make_subplots(
-        rows=1, cols=3,
-        subplot_titles=('Income Distribution', 'CC Spending Distribution', 'Income by CC Ownership')
-    )
+def create_confusion_matrices(results):
+    """Create confusion matrices visualization"""
+    fig = make_subplots(rows=2, cols=2, 
+                        subplot_titles=list(results.keys()),
+                        vertical_spacing=0.15,
+                        horizontal_spacing=0.1)
     
-    # Income Box Plot
-    for status in ['Not Accepted', 'Accepted']:
-        subset = df[df['LoanStatus'] == status]
+    positions = [(1, 1), (1, 2), (2, 1), (2, 2)]
+    
+    for (name, result), (row, col) in zip(results.items(), positions):
+        cm = result['confusion_matrix']
+        
+        # Create annotations
+        annotations = [[f'TN<br>{cm[0,0]}', f'FP<br>{cm[0,1]}'],
+                       [f'FN<br>{cm[1,0]}', f'TP<br>{cm[1,1]}']]
+        
         fig.add_trace(
-            go.Box(
-                y=subset['Income'],
-                name=status,
-                marker_color=colors['primary_color'] if status == 'Not Accepted' else colors['secondary_color'],
-                boxmean=True
+            go.Heatmap(
+                z=cm,
+                x=['Predicted 0', 'Predicted 1'],
+                y=['Actual 0', 'Actual 1'],
+                colorscale='Blues',
+                showscale=False,
+                text=[[cm[0,0], cm[0,1]], [cm[1,0], cm[1,1]]],
+                texttemplate='%{text}',
+                textfont={"size": 14}
+            ),
+            row=row, col=col
+        )
+    
+    fig.update_layout(height=600, title_text="Confusion Matrices")
+    return fig
+
+def create_feature_importance(feature_importance):
+    """Create feature importance visualization"""
+    fig = go.Figure(go.Bar(
+        x=feature_importance['Importance'],
+        y=feature_importance['Feature'],
+        orientation='h',
+        marker_color='#3B82F6'
+    ))
+    
+    fig.update_layout(
+        title='Feature Importance (Random Forest)',
+        xaxis_title='Importance',
+        yaxis_title='Feature',
+        height=400,
+        yaxis={'categoryorder': 'total ascending'}
+    )
+    
+    return fig
+
+# -----------------------------------------------------------------------------
+# CUSTOMER SEGMENTATION
+# -----------------------------------------------------------------------------
+
+def perform_clustering(df):
+    """Perform K-Means clustering"""
+    features_for_clustering = ['Age', 'Income', 'CCAvg', 'Mortgage']
+    existing_features = [f for f in features_for_clustering if f in df.columns]
+    
+    X_cluster = df[existing_features].copy()
+    X_cluster = X_cluster.fillna(X_cluster.median())
+    
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_cluster)
+    
+    # Perform K-Means
+    kmeans = KMeans(n_clusters=4, random_state=42, n_init=10)
+    df['Cluster'] = kmeans.fit_predict(X_scaled)
+    
+    # PCA for visualization
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X_scaled)
+    df['PCA1'] = X_pca[:, 0]
+    df['PCA2'] = X_pca[:, 1]
+    
+    return df, kmeans
+
+def create_cluster_visualization(df):
+    """Create cluster visualization"""
+    fig = make_subplots(rows=1, cols=2,
+                        subplot_titles=('Customer Segments (PCA)', 'Cluster Characteristics'))
+    
+    # PCA scatter plot
+    colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444']
+    for i in df['Cluster'].unique():
+        subset = df[df['Cluster'] == i]
+        fig.add_trace(
+            go.Scatter(
+                x=subset['PCA1'],
+                y=subset['PCA2'],
+                mode='markers',
+                name=f'Cluster {i}',
+                marker=dict(color=colors[i % len(colors)], size=5, opacity=0.6)
             ),
             row=1, col=1
         )
     
-    # CCAvg Box Plot
-    for status in ['Not Accepted', 'Accepted']:
-        subset = df[df['LoanStatus'] == status]
-        fig.add_trace(
-            go.Box(
-                y=subset['CCAvg'],
-                name=status,
-                marker_color=colors['primary_color'] if status == 'Not Accepted' else colors['secondary_color'],
-                boxmean=True,
-                showlegend=False
-            ),
-            row=1, col=2
-        )
-    
-    # Income by Credit Card
-    for cc in [0, 1]:
-        for status in ['Not Accepted', 'Accepted']:
-            subset = df[(df['CreditCard'] == cc) & (df['LoanStatus'] == status)]
-            cc_label = 'Has CC' if cc == 1 else 'No CC'
-            fig.add_trace(
-                go.Box(
-                    y=subset['Income'],
-                    name=f'{cc_label} - {status}',
-                    marker_color=colors['primary_color'] if status == 'Not Accepted' else colors['secondary_color'],
-                    showlegend=False
-                ),
-                row=1, col=3
-            )
-    
-    fig.update_layout(
-        title_text='📦 Distribution Analysis: Income & Credit Card Spending',
-        height=500,
-        showlegend=True,
-        legend_title='Loan Status'
-    )
-    
-    fig.update_yaxes(title_text='Income ($000)', row=1, col=1)
-    fig.update_yaxes(title_text='CC Avg ($000)', row=1, col=2)
-    fig.update_yaxes(title_text='Income ($000)', row=1, col=3)
-    
-    return apply_theme_to_fig(fig, colors)
-
-
-def create_education_analysis(df, colors):
-    """Visualization 8: Education vs Income vs Personal Loan"""
-    fig = px.violin(
-        df,
-        x='EducationLevel',
-        y='Income',
-        color='LoanStatus',
-        color_discrete_map={
-            'Not Accepted': colors['primary_color'],
-            'Accepted': colors['secondary_color']
-        },
-        box=True,
-        points='outliers',
-        labels={
-            'EducationLevel': 'Education Level',
-            'Income': 'Annual Income ($000)'
-        },
-        title='🎓 Income Distribution by Education Level & Loan Status'
-    )
-    
-    fig.update_layout(
-        xaxis_title='Education Level',
-        yaxis_title='Annual Income ($000)',
-        legend_title='Loan Status',
-        violinmode='group'
-    )
-    
-    return apply_theme_to_fig(fig, colors)
-
-
-def create_education_conversion_chart(df, colors):
-    """Visualization 8b: Education conversion rates"""
-    edu_stats = df.groupby('EducationLevel').agg({
-        'PersonalLoan': ['sum', 'count', 'mean'],
-        'Income': 'mean'
+    # Cluster characteristics - bar chart
+    cluster_stats = df.groupby('Cluster').agg({
+        'Income': 'mean',
+        'Age': 'mean',
+        'CCAvg': 'mean',
+        'PersonalLoan': 'mean'
     }).reset_index()
     
-    edu_stats.columns = ['Education', 'Converted', 'Total', 'ConvRate', 'AvgIncome']
-    edu_stats['ConvRatePercent'] = edu_stats['ConvRate'] * 100
-    
-    fig = px.bar(
-        edu_stats,
-        x='Education',
-        y='ConvRatePercent',
-        text='ConvRatePercent',
-        color='AvgIncome',
-        color_continuous_scale='Blues',
-        labels={
-            'ConvRatePercent': 'Conversion Rate (%)',
-            'AvgIncome': 'Avg Income ($K)'
-        },
-        title='📚 Conversion Rate by Education Level'
+    fig.add_trace(
+        go.Bar(x=cluster_stats['Cluster'], y=cluster_stats['Income'],
+               name='Avg Income', marker_color='#3B82F6'),
+        row=1, col=2
     )
     
-    fig.update_traces(
-        texttemplate='%{text:.1f}%',
-        textposition='outside'
-    )
-    
-    return apply_theme_to_fig(fig, colors)
+    fig.update_layout(height=400, title_text="Customer Segmentation Analysis")
+    return fig, df.groupby('Cluster').agg({
+        'Income': 'mean',
+        'Age': 'mean',
+        'CCAvg': 'mean',
+        'PersonalLoan': ['mean', 'sum', 'count']
+    })
 
-
-def create_mortgage_analysis_3d(df, colors):
-    """Visualization 9: Mortgage vs Income vs Family Size vs Personal Loan"""
-    # Sample data for better 3D visualization
-    df_sample = df.sample(min(1000, len(df)), random_state=42)
-    
-    fig = px.scatter_3d(
-        df_sample,
-        x='Income',
-        y='Mortgage',
-        z='Family',
-        color='LoanStatus',
-        size='CCAvg',
-        color_discrete_map={
-            'Not Accepted': colors['primary_color'],
-            'Accepted': colors['secondary_color']
-        },
-        hover_data=['Age', 'EducationLevel'],
-        labels={
-            'Income': 'Income ($K)',
-            'Mortgage': 'Mortgage ($K)',
-            'Family': 'Family Size'
-        },
-        title='🏠 3D View: Income × Mortgage × Family Size'
-    )
-    
-    fig.update_layout(
-        scene=dict(
-            xaxis=dict(backgroundcolor=colors['plot_bg'], gridcolor=colors['grid_color']),
-            yaxis=dict(backgroundcolor=colors['plot_bg'], gridcolor=colors['grid_color']),
-            zaxis=dict(backgroundcolor=colors['plot_bg'], gridcolor=colors['grid_color']),
-            bgcolor=colors['plot_bg']
-        ),
-        height=600
-    )
-    
-    return apply_theme_to_fig(fig, colors)
-
-
-def create_mortgage_heatmap(df, colors):
-    """Visualization 9b: Mortgage holders conversion analysis"""
-    df_mortgage = df[df['Mortgage'] > 0].copy()
-    df_mortgage['IncomeRange'] = pd.cut(
-        df_mortgage['Income'],
-        bins=[0, 75, 100, 150, 250],
-        labels=['<$75K', '$75-100K', '$100-150K', '>$150K']
-    )
-    
-    if len(df_mortgage) > 0:
-        heatmap_data = df_mortgage.pivot_table(
-            values='PersonalLoan',
-            index='Family',
-            columns='IncomeRange',
-            aggfunc='mean'
-        ) * 100
-        
-        fig = px.imshow(
-            heatmap_data,
-            text_auto='.1f',
-            color_continuous_scale='RdYlGn',
-            labels=dict(x='Income Range', y='Family Size', color='Conv Rate (%)'),
-            title='🏠 Conversion Rate: Mortgage Holders by Family & Income'
-        )
-        
-        return apply_theme_to_fig(fig, colors)
-    
-    return None
-
-
-# ============================================
-# KPI CALCULATION FUNCTIONS
-# ============================================
-def calculate_kpis(df):
-    """Calculate key performance indicators"""
-    total_customers = len(df)
-    converted = df['PersonalLoan'].sum()
-    conversion_rate = (converted / total_customers) * 100
-    avg_income_converted = df[df['PersonalLoan'] == 1]['Income'].mean()
-    avg_income_not_converted = df[df['PersonalLoan'] == 0]['Income'].mean()
-    cd_conversion = df[df['CDAccount'] == 1]['PersonalLoan'].mean() * 100
-    
-    return {
-        'total_customers': total_customers,
-        'converted': converted,
-        'conversion_rate': conversion_rate,
-        'avg_income_converted': avg_income_converted,
-        'avg_income_not_converted': avg_income_not_converted,
-        'cd_conversion': cd_conversion
-    }
-
-
-# ============================================
+# -----------------------------------------------------------------------------
 # MAIN APPLICATION
-# ============================================
+# -----------------------------------------------------------------------------
+
 def main():
-    # Initialize session state for theme
-    if 'theme' not in st.session_state:
-        st.session_state.theme = 'Dark'
+    # Header
+    st.markdown('<h1 class="main-header">🏦 Universal Bank - Loan Analytics Dashboard</h1>', 
+                unsafe_allow_html=True)
+    st.markdown("---")
     
-    # Sidebar
+    # Sidebar for debugging (optional)
     with st.sidebar:
-        st.markdown("## ⚙️ Dashboard Settings")
+        st.header("🔧 Settings")
         
-        # Theme Toggle
-        st.markdown("### 🎨 Theme")
-        theme = st.toggle('Light Mode', value=(st.session_state.theme == 'Light'))
-        st.session_state.theme = 'Light' if theme else 'Dark'
-        
-        st.markdown("---")
-        
-        # Navigation
-        st.markdown("### 📑 Navigation")
-        page = st.radio(
-            "Select Page:",
-            [
-                "🏠 Executive Overview",
-                "📊 Distribution Analysis",
-                "🔗 Correlation & Relationships",
-                "👨‍👩‍👧‍👦 Demographic Analysis",
-                "🏦 Product Analysis",
-                "📋 Data Explorer"
-            ]
-        )
-        
-        st.markdown("---")
-        st.markdown("### 📌 Quick Stats")
-    
-    # Get theme colors
-    colors = get_theme_colors(st.session_state.theme)
-    
-    # Apply CSS
-    st.markdown(load_css(st.session_state.theme), unsafe_allow_html=True)
+        if st.checkbox("Show Debug Info", value=False):
+            st.write("**Current Directory:**", os.getcwd())
+            st.write("**Files in Directory:**")
+            try:
+                files = os.listdir('.')
+                for f in files:
+                    st.write(f"  - {f}")
+            except Exception as e:
+                st.error(f"Error listing files: {e}")
+            
+            if os.path.exists('UniversalBank.csv'):
+                st.success("✅ UniversalBank.csv found!")
+                try:
+                    with open('UniversalBank.csv', 'r') as f:
+                        first_line = f.readline()[:200]
+                    st.write("**First line preview:**")
+                    st.code(first_line)
+                except Exception as e:
+                    st.error(f"Error reading file: {e}")
+            else:
+                st.error("❌ UniversalBank.csv NOT found!")
     
     # Load data
     try:
         df = load_data()
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        st.info("Please ensure 'UniversalBank.csv' is in the same directory as the app.")
-        return
-    
-    # Calculate KPIs
-    kpis = calculate_kpis(df)
-    
-    # Update sidebar with quick stats
-    with st.sidebar:
-        st.metric("Total Customers", f"{kpis['total_customers']:,}")
-        st.metric("Conversion Rate", f"{kpis['conversion_rate']:.1f}%")
-        st.metric("CD Holder Conv.", f"{kpis['cd_conversion']:.1f}%")
-    
-    # ============================================
-    # PAGE: EXECUTIVE OVERVIEW
-    # ============================================
-    if page == "🏠 Executive Overview":
-        st.markdown('<h1 class="main-title">🏦 UniversalBank Analytics Dashboard</h1>', 
-                    unsafe_allow_html=True)
-        st.markdown('<p class="subtitle">Personal Loan Campaign Performance Analysis</p>', 
-                    unsafe_allow_html=True)
+        st.sidebar.success(f"✅ Data loaded successfully! ({len(df)} records)")
+    except FileNotFoundError:
+        st.error("""
+        ⚠️ **File Not Found Error**
         
-        # KPI Cards
-        col1, col2, col3, col4 = st.columns(4)
+        The file `UniversalBank.csv` was not found in the current directory.
+        
+        Please ensure the file is in the same folder as `app.py`.
+        """)
+        st.stop()
+    except Exception as e:
+        st.error(f"""
+        ⚠️ **Error loading data:** {str(e)}
+        
+        Please ensure 'UniversalBank.csv' is in the same directory as the app and is properly formatted.
+        
+        **Troubleshooting Tips:**
+        1. Check if the file exists in the same folder as app.py
+        2. Enable "Show Debug Info" in the sidebar
+        3. Verify the CSV file format
+        """)
+        st.stop()
+    
+    # Sidebar filters
+    st.sidebar.header("🎯 Filters")
+    
+    # Income filter
+    income_range = st.sidebar.slider(
+        "Income Range ($K)",
+        int(df['Income'].min()),
+        int(df['Income'].max()),
+        (int(df['Income'].min()), int(df['Income'].max()))
+    )
+    
+    # Age filter
+    age_range = st.sidebar.slider(
+        "Age Range",
+        int(df['Age'].min()),
+        int(df['Age'].max()),
+        (int(df['Age'].min()), int(df['Age'].max()))
+    )
+    
+    # Education filter
+    education_options = df['EducationLevel'].dropna().unique().tolist()
+    selected_education = st.sidebar.multiselect(
+        "Education Level",
+        options=education_options,
+        default=education_options
+    )
+    
+    # Family size filter
+    family_options = sorted(df['Family'].unique().tolist())
+    selected_family = st.sidebar.multiselect(
+        "Family Size",
+        options=family_options,
+        default=family_options
+    )
+    
+    # Apply filters
+    filtered_df = df[
+        (df['Income'] >= income_range[0]) &
+        (df['Income'] <= income_range[1]) &
+        (df['Age'] >= age_range[0]) &
+        (df['Age'] <= age_range[1]) &
+        (df['EducationLevel'].isin(selected_education)) &
+        (df['Family'].isin(selected_family))
+    ]
+    
+    st.sidebar.markdown("---")
+    st.sidebar.metric("Filtered Customers", f"{len(filtered_df):,}")
+    
+    # Main content tabs
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📊 Overview", 
+        "📈 Detailed Analysis", 
+        "🤖 ML Models", 
+        "👥 Customer Segments",
+        "🔮 Predictions"
+    ])
+    
+    # TAB 1: Overview
+    with tab1:
+        st.markdown("### 📊 Key Performance Indicators")
+        create_kpi_metrics(filtered_df)
+        
+        st.markdown("---")
+        
+        col1, col2 = st.columns(2)
         
         with col1:
-            st.metric(
-                label="Total Customers",
-                value=f"{kpis['total_customers']:,}",
-                delta="Database Size"
-            )
+            st.markdown("### Income Distribution")
+            fig_income = create_income_distribution(filtered_df)
+            st.plotly_chart(fig_income, use_container_width=True)
         
         with col2:
-            st.metric(
-                label="Conversion Rate",
-                value=f"{kpis['conversion_rate']:.1f}%",
-                delta=f"{kpis['converted']:,} Converted"
-            )
+            st.markdown("### Age Analysis")
+            fig_age = create_age_analysis(filtered_df)
+            st.plotly_chart(fig_age, use_container_width=True)
+        
+        st.markdown("---")
+        
+        col3, col4 = st.columns(2)
         
         with col3:
-            st.metric(
-                label="Avg Income (Converted)",
-                value=f"${kpis['avg_income_converted']:.0f}K",
-                delta=f"+${kpis['avg_income_converted'] - kpis['avg_income_not_converted']:.0f}K vs Others"
-            )
+            st.markdown("### Education Analysis")
+            fig_edu = create_education_analysis(filtered_df)
+            st.plotly_chart(fig_edu, use_container_width=True)
         
         with col4:
-            st.metric(
-                label="CD Holders Conv. Rate",
-                value=f"{kpis['cd_conversion']:.1f}%",
-                delta=f"+{kpis['cd_conversion'] - kpis['conversion_rate']:.1f}% vs Baseline"
-            )
-        
-        st.markdown("---")
-        
-        # Key Insights
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown('<div class="section-header">📈 Key Insights</div>', unsafe_allow_html=True)
-            
-            st.markdown(f"""
-            <div class="insight-box">
-                <strong>💰 Income Impact:</strong> Customers who accepted loans have 
-                {((kpis['avg_income_converted'] / kpis['avg_income_not_converted']) - 1) * 100:.0f}% higher average income
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown(f"""
-            <div class="insight-box">
-                <strong>🏦 CD Account Effect:</strong> CD account holders are 
-                {kpis['cd_conversion'] / kpis['conversion_rate']:.1f}x more likely to accept a loan
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Education insight
-            edu_conv = df.groupby('EducationLevel')['PersonalLoan'].mean() * 100
-            highest_edu = edu_conv.idxmax()
-            st.markdown(f"""
-            <div class="insight-box">
-                <strong>🎓 Education:</strong> {highest_edu} education shows highest conversion at {edu_conv.max():.1f}%
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown('<div class="section-header">🎯 Conversion by Segment</div>', unsafe_allow_html=True)
-            
-            # Quick segment analysis
-            segment_data = df.groupby('EducationLevel')['PersonalLoan'].agg(['sum', 'count', 'mean']).reset_index()
-            segment_data.columns = ['Education', 'Converted', 'Total', 'Rate']
-            segment_data['Rate'] = segment_data['Rate'] * 100
-            
-            fig_segment = px.bar(
-                segment_data,
-                x='Education',
-                y='Rate',
-                text='Rate',
-                color='Rate',
-                color_continuous_scale='Blues'
-            )
-            fig_segment.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
-            fig_segment.update_layout(
-                showlegend=False,
-                height=300,
-                margin=dict(t=30, b=30)
-            )
-            st.plotly_chart(apply_theme_to_fig(fig_segment, colors), use_container_width=True)
-        
-        st.markdown("---")
-        
-        # Overview Charts
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.plotly_chart(create_income_histogram(df, colors), use_container_width=True)
-        
-        with col2:
-            st.plotly_chart(create_product_analysis(df, colors), use_container_width=True)
+            st.markdown("### Family Size Impact")
+            fig_family = create_family_analysis(filtered_df)
+            st.plotly_chart(fig_family, use_container_width=True)
     
-    # ============================================
-    # PAGE: DISTRIBUTION ANALYSIS
-    # ============================================
-    elif page == "📊 Distribution Analysis":
-        st.markdown('<h1 class="main-title">📊 Distribution Analysis</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="subtitle">Analyze income, age, and spending distributions</p>', 
-                    unsafe_allow_html=True)
-        
-        # Tabs for different visualizations
-        tab1, tab2, tab3 = st.tabs(["📈 Income & Age Histograms", "📦 Box Plots", "💳 CC Analysis"])
-        
-        with tab1:
-            st.markdown("### Income Distribution by Loan Status")
-            st.markdown("""
-            > **Visualization 1a:** This histogram shows the distribution of annual income, 
-            separated by whether customers accepted the personal loan offer.
-            """)
-            st.plotly_chart(create_income_histogram(df, colors), use_container_width=True)
-            
-            st.markdown("---")
-            
-            st.markdown("### Age Distribution by Loan Status")
-            st.markdown("""
-            > **Visualization 1b:** This histogram compares age distributions between 
-            customers who accepted and those who didn't accept the loan.
-            """)
-            st.plotly_chart(create_age_histogram(df, colors), use_container_width=True)
-            
-            # Statistical Summary
-            with st.expander("📊 Statistical Summary"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("**Income Statistics:**")
-                    income_stats = df.groupby('LoanStatus')['Income'].describe()
-                    st.dataframe(income_stats.style.format("{:.2f}"))
-                with col2:
-                    st.markdown("**Age Statistics:**")
-                    age_stats = df.groupby('LoanStatus')['Age'].describe()
-                    st.dataframe(age_stats.style.format("{:.2f}"))
-        
-        with tab2:
-            st.markdown("### Box and Whisker Plots")
-            st.markdown("""
-            > **Visualization 7:** Box plots showing the distribution of Income and Credit Card 
-            spending, with median, quartiles, and outliers clearly visible.
-            """)
-            st.plotly_chart(create_box_plots(df, colors), use_container_width=True)
-            
-            # Key observations
-            st.markdown("""
-            <div class="insight-box">
-                <strong>📌 Key Observations:</strong><br>
-                • Loan acceptors have significantly higher median income (~$144K vs ~$64K)<br>
-                • Credit card spending also notably higher for loan acceptors<br>
-                • Clear separation in income distributions indicates strong predictive power
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with tab3:
-            st.markdown("### Credit Card Spending vs Income")
-            st.markdown("""
-            > **Visualization 2:** Scatter plot showing the relationship between monthly 
-            credit card spending and annual income, colored by loan acceptance status.
-            """)
-            st.plotly_chart(create_ccavg_income_scatter(df, colors), use_container_width=True)
-            
-            # Correlation info
-            corr_accepted = df[df['PersonalLoan'] == 1][['Income', 'CCAvg']].corr().iloc[0, 1]
-            corr_not_accepted = df[df['PersonalLoan'] == 0][['Income', 'CCAvg']].corr().iloc[0, 1]
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Correlation (Accepted)", f"{corr_accepted:.3f}")
-            with col2:
-                st.metric("Correlation (Not Accepted)", f"{corr_not_accepted:.3f}")
-    
-    # ============================================
-    # PAGE: CORRELATION & RELATIONSHIPS
-    # ============================================
-    elif page == "🔗 Correlation & Relationships":
-        st.markdown('<h1 class="main-title">🔗 Correlation & Relationships</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="subtitle">Explore variable relationships and geographic patterns</p>', 
-                    unsafe_allow_html=True)
-        
-        tab1, tab2 = st.tabs(["🔥 Correlation Heatmap", "📍 Geographic Analysis"])
-        
-        with tab1:
-            st.markdown("### Full Correlation Matrix")
-            st.markdown("""
-            > **Visualization 4:** Heatmap showing correlations between all numerical variables. 
-            Values range from -1 (strong negative) to +1 (strong positive correlation).
-            """)
-            
-            st.plotly_chart(create_correlation_heatmap(df, colors), use_container_width=True)
-            
-            # Key correlations with Personal Loan
-            st.markdown("### 🔑 Key Correlations with Personal Loan")
-            
-            numerical_cols = ['Age', 'Experience', 'Income', 'Family', 'CCAvg', 
-                              'Education', 'Mortgage', 'SecuritiesAccount', 'CDAccount', 'Online', 'CreditCard']
-            
-            correlations = df[numerical_cols + ['PersonalLoan']].corr()['PersonalLoan'].drop('PersonalLoan').sort_values(ascending=False)
-            
-            corr_df = pd.DataFrame({
-                'Variable': correlations.index,
-                'Correlation': correlations.values
-            })
-            
-            fig_corr = px.bar(
-                corr_df,
-                x='Correlation',
-                y='Variable',
-                orientation='h',
-                color='Correlation',
-                color_continuous_scale='RdBu_r',
-                title='Correlation with Personal Loan Acceptance'
-            )
-            fig_corr.update_layout(height=400)
-            st.plotly_chart(apply_theme_to_fig(fig_corr, colors), use_container_width=True)
-        
-        with tab2:
-            st.markdown("### ZIP Code Analysis")
-            st.markdown("""
-            > **Visualization 3:** Analysis of conversion rates across different ZIP code regions.
-            Bubble size represents customer count, color represents conversion rate.
-            
-            ⚠️ **Note:** ZIP code should not be used for prediction models as per data guidelines.
-            """)
-            
-            st.plotly_chart(create_zipcode_analysis(df, colors), use_container_width=True)
-            
-            # Top ZIP codes table
-            with st.expander("📋 Top ZIP Code Regions by Conversion"):
-                zip_stats = df.groupby('ZIPPrefix').agg({
-                    'Income': 'mean',
-                    'PersonalLoan': ['sum', 'count', 'mean']
-                }).reset_index()
-                zip_stats.columns = ['ZIP Prefix', 'Avg Income', 'Converted', 'Total', 'Conv Rate']
-                zip_stats = zip_stats[zip_stats['Total'] >= 10]
-                zip_stats = zip_stats.sort_values('Conv Rate', ascending=False).head(10)
-                zip_stats['Conv Rate'] = (zip_stats['Conv Rate'] * 100).round(1).astype(str) + '%'
-                zip_stats['Avg Income'] = '$' + zip_stats['Avg Income'].round(0).astype(int).astype(str) + 'K'
-                st.dataframe(zip_stats, use_container_width=True)
-    
-    # ============================================
-    # PAGE: DEMOGRAPHIC ANALYSIS
-    # ============================================
-    elif page == "👨‍👩‍👧‍👦 Demographic Analysis":
-        st.markdown('<h1 class="main-title">👨‍👩‍👧‍👦 Demographic Analysis</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="subtitle">Deep dive into family, education, and mortgage factors</p>', 
-                    unsafe_allow_html=True)
-        
-        tab1, tab2, tab3 = st.tabs(["👨‍👩‍👧 Family Analysis", "🎓 Education Impact", "🏠 Mortgage Analysis"])
-        
-        with tab1:
-            st.markdown("### Family Size vs Income Analysis")
-            st.markdown("""
-            > **Visualization 5:** Explore how family size and income interact with loan acceptance.
-            Bubble size represents credit card spending.
-            """)
-            
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                st.plotly_chart(create_family_income_analysis(df, colors), use_container_width=True)
-            
-            with col2:
-                st.markdown("#### Conversion by Family Size")
-                family_conv = df.groupby('Family')['PersonalLoan'].mean() * 100
-                for fam, conv in family_conv.items():
-                    st.metric(f"Family Size: {fam}", f"{conv:.1f}%")
-            
-            st.markdown("---")
-            st.markdown("### Conversion Heatmap: Family Size × Income")
-            st.plotly_chart(create_family_mortgage_heatmap(df, colors), use_container_width=True)
-        
-        with tab2:
-            st.markdown("### Education Level Impact")
-            st.markdown("""
-            > **Visualization 8:** Violin plots showing income distribution by education level 
-            and loan status, revealing the combined effect of education and income.
-            """)
-            
-            st.plotly_chart(create_education_analysis(df, colors), use_container_width=True)
-            
-            st.markdown("---")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.plotly_chart(create_education_conversion_chart(df, colors), use_container_width=True)
-            
-            with col2:
-                st.markdown("#### Education Statistics")
-                edu_table = df.groupby('EducationLevel').agg({
-                    'PersonalLoan': ['sum', 'count', 'mean'],
-                    'Income': 'mean'
-                }).reset_index()
-                edu_table.columns = ['Education', 'Converted', 'Total', 'Conv Rate', 'Avg Income']
-                edu_table['Conv Rate'] = (edu_table['Conv Rate'] * 100).round(1)
-                edu_table['Avg Income'] = edu_table['Avg Income'].round(0)
-                st.dataframe(edu_table, use_container_width=True)
-                
-                st.markdown("""
-                <div class="insight-box">
-                    <strong>💡 Insight:</strong> Advanced/Professional education shows 
-                    ~4x higher conversion rate than Undergraduate level.
-                </div>
-                """, unsafe_allow_html=True)
-        
-        with tab3:
-            st.markdown("### Mortgage Analysis")
-            st.markdown("""
-            > **Visualization 9:** 3D visualization of Income × Mortgage × Family Size, 
-            showing how these factors combine to influence loan acceptance.
-            """)
-            
-            st.plotly_chart(create_mortgage_analysis_3d(df, colors), use_container_width=True)
-            
-            st.markdown("---")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Mortgage presence impact
-                mortgage_conv = df.groupby('HasMortgage')['PersonalLoan'].mean() * 100
-                st.markdown("#### Mortgage Impact on Conversion")
-                
-                fig_mortgage = px.pie(
-                    values=[mortgage_conv.get('Yes', 0), mortgage_conv.get('No', 0)],
-                    names=['Has Mortgage', 'No Mortgage'],
-                    title='Conversion Rate Comparison',
-                    color_discrete_sequence=[colors['secondary_color'], colors['primary_color']]
-                )
-                st.plotly_chart(apply_theme_to_fig(fig_mortgage, colors), use_container_width=True)
-            
-            with col2:
-                heatmap_fig = create_mortgage_heatmap(df, colors)
-                if heatmap_fig:
-                    st.plotly_chart(heatmap_fig, use_container_width=True)
-                else:
-                    st.info("Insufficient mortgage data for heatmap visualization.")
-    
-    # ============================================
-    # PAGE: PRODUCT ANALYSIS
-    # ============================================
-    elif page == "🏦 Product Analysis":
-        st.markdown('<h1 class="main-title">🏦 Product Analysis & Cross-Selling</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="subtitle">Analyze product ownership patterns and cross-selling opportunities</p>', 
-                    unsafe_allow_html=True)
-        
-        st.markdown("### Product Ownership vs Loan Acceptance")
-        st.markdown("""
-        > **Visualization 6:** Compare conversion rates between customers who have 
-        various bank products vs those who don't.
-        """)
+    # TAB 2: Detailed Analysis
+    with tab2:
+        st.markdown("### 📈 Detailed Feature Analysis")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.plotly_chart(create_product_analysis(df, colors), use_container_width=True)
+            st.markdown("#### Mortgage Analysis")
+            fig_mortgage = create_mortgage_analysis(filtered_df)
+            st.plotly_chart(fig_mortgage, use_container_width=True)
         
         with col2:
-            st.plotly_chart(create_product_combination_chart(df, colors), use_container_width=True)
+            st.markdown("#### Credit Card Spending")
+            fig_cc = create_cc_spending_analysis(filtered_df)
+            st.plotly_chart(fig_cc, use_container_width=True)
         
         st.markdown("---")
         
-        # Cross-selling opportunities
-        st.markdown("### 🎯 Cross-Selling Opportunities")
+        st.markdown("#### Banking Services Usage")
+        fig_services = create_services_analysis(filtered_df)
+        st.plotly_chart(fig_services, use_container_width=True)
+        
+        st.markdown("---")
+        
+        st.markdown("#### Correlation Matrix")
+        fig_corr = create_correlation_heatmap(filtered_df)
+        st.plotly_chart(fig_corr, use_container_width=True)
+        
+        # Data preview
+        st.markdown("---")
+        st.markdown("#### 📋 Data Preview")
+        display_cols = ['ID', 'Age', 'Income', 'Family', 'CCAvg', 'Education', 
+                        'Mortgage', 'PersonalLoan', 'EducationLevel', 'LoanStatus']
+        existing_display_cols = [c for c in display_cols if c in filtered_df.columns]
+        st.dataframe(filtered_df[existing_display_cols].head(100), use_container_width=True)
+    
+    # TAB 3: ML Models
+    with tab3:
+        st.markdown("### 🤖 Machine Learning Model Performance")
+        
+        with st.spinner("Training models..."):
+            results, trained_models, feature_importance, scaler, X_test, y_test, feature_names = train_models(df)
+        
+        # Model comparison
+        fig_comparison, metrics_df = create_model_comparison(results)
+        st.plotly_chart(fig_comparison, use_container_width=True)
+        
+        st.markdown("#### 📊 Performance Metrics Table")
+        st.dataframe(metrics_df.style.highlight_max(axis=0, subset=['Accuracy', 'Precision', 'Recall', 'F1 Score', 'ROC AUC']),
+                     use_container_width=True)
+        
+        st.markdown("---")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### ROC Curves")
+            fig_roc = create_roc_curves(results)
+            st.plotly_chart(fig_roc, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### Feature Importance")
+            fig_fi = create_feature_importance(feature_importance)
+            st.plotly_chart(fig_fi, use_container_width=True)
+        
+        st.markdown("---")
+        
+        st.markdown("#### Confusion Matrices")
+        fig_cm = create_confusion_matrices(results)
+        st.plotly_chart(fig_cm, use_container_width=True)
+    
+    # TAB 4: Customer Segments
+    with tab4:
+        st.markdown("### 👥 Customer Segmentation Analysis")
+        
+        with st.spinner("Performing clustering..."):
+            clustered_df, kmeans = perform_clustering(filtered_df.copy())
+        
+        fig_cluster, cluster_stats = create_cluster_visualization(clustered_df)
+        st.plotly_chart(fig_cluster, use_container_width=True)
+        
+        st.markdown("#### Cluster Statistics")
+        st.dataframe(cluster_stats, use_container_width=True)
+        
+        # Cluster descriptions
+        st.markdown("#### 📝 Cluster Insights")
+        
+        cluster_summary = clustered_df.groupby('Cluster').agg({
+            'Income': 'mean',
+            'Age': 'mean',
+            'CCAvg': 'mean',
+            'Mortgage': 'mean',
+            'PersonalLoan': 'mean'
+        }).round(2)
+        
+        for i in range(4):
+            if i in cluster_summary.index:
+                with st.expander(f"Cluster {i} Details"):
+                    col1, col2, col3, col4, col5 = st.columns(5)
+                    col1.metric("Avg Income", f"${cluster_summary.loc[i, 'Income']:.0f}K")
+                    col2.metric("Avg Age", f"{cluster_summary.loc[i, 'Age']:.1f}")
+                    col3.metric("Avg CC Spending", f"${cluster_summary.loc[i, 'CCAvg']:.2f}K")
+                    col4.metric("Avg Mortgage", f"${cluster_summary.loc[i, 'Mortgage']:.0f}K")
+                    col5.metric("Loan Accept Rate", f"{cluster_summary.loc[i, 'PersonalLoan']*100:.1f}%")
+    
+    # TAB 5: Predictions
+    with tab5:
+        st.markdown("### 🔮 Predict Loan Acceptance")
+        st.markdown("Enter customer details to predict loan acceptance probability.")
+        
+        # Make sure models are trained
+        with st.spinner("Loading models..."):
+            results, trained_models, feature_importance, scaler, X_test, y_test, feature_names = train_models(df)
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            cd_holders = df[df['CDAccount'] == 1]
-            cd_no_loan = cd_holders[cd_holders['PersonalLoan'] == 0]
-            st.metric(
-                "CD Holders without Loan",
-                f"{len(cd_no_loan):,}",
-                f"Potential: {(len(cd_no_loan) * 0.29):.0f} conversions"
-            )
+            pred_age = st.number_input("Age", min_value=18, max_value=70, value=35)
+            pred_experience = st.number_input("Experience (years)", min_value=-3, max_value=50, value=10)
+            pred_income = st.number_input("Income ($K)", min_value=0, max_value=250, value=50)
+            pred_family = st.selectbox("Family Size", [1, 2, 3, 4])
         
         with col2:
-            sec_holders = df[df['SecuritiesAccount'] == 1]
-            sec_no_cd = sec_holders[sec_holders['CDAccount'] == 0]
-            st.metric(
-                "Securities Holders without CD",
-                f"{len(sec_no_cd):,}",
-                "Cross-sell opportunity"
-            )
+            pred_ccavg = st.number_input("CC Avg Spending ($K/month)", min_value=0.0, max_value=10.0, value=1.5, step=0.1)
+            pred_education = st.selectbox("Education", [1, 2, 3], format_func=lambda x: {1: "Undergraduate", 2: "Graduate", 3: "Advanced"}[x])
+            pred_mortgage = st.number_input("Mortgage ($K)", min_value=0, max_value=700, value=0)
         
         with col3:
-            online_only = df[(df['Online'] == 1) & (df['CreditCard'] == 0)]
-            st.metric(
-                "Online Users without CC",
-                f"{len(online_only):,}",
-                "Credit card opportunity"
-            )
+            pred_securities = st.selectbox("Securities Account", [0, 1], format_func=lambda x: "Yes" if x else "No")
+            pred_cd = st.selectbox("CD Account", [0, 1], format_func=lambda x: "Yes" if x else "No")
+            pred_online = st.selectbox("Online Banking", [0, 1], format_func=lambda x: "Yes" if x else "No")
+            pred_cc = st.selectbox("Credit Card", [0, 1], format_func=lambda x: "Yes" if x else "No")
         
-        # Product overlap analysis
-        st.markdown("### Product Overlap Analysis")
-        
-        # Create product overlap matrix
-        products = ['CDAccount', 'SecuritiesAccount', 'CreditCard', 'Online']
-        overlap_matrix = pd.DataFrame(index=products, columns=products)
-        
-        for p1 in products:
-            for p2 in products:
-                if p1 == p2:
-                    overlap_matrix.loc[p1, p2] = df[p1].sum()
-                else:
-                    overlap_matrix.loc[p1, p2] = ((df[p1] == 1) & (df[p2] == 1)).sum()
-        
-        overlap_matrix = overlap_matrix.astype(float)
-        
-        fig_overlap = px.imshow(
-            overlap_matrix,
-            text_auto=True,
-            color_continuous_scale='Blues',
-            title='Product Ownership Overlap Matrix'
-        )
-        st.plotly_chart(apply_theme_to_fig(fig_overlap, colors), use_container_width=True)
-    
-    # ============================================
-    # PAGE: DATA EXPLORER
-    # ============================================
-    elif page == "📋 Data Explorer":
-        st.markdown('<h1 class="main-title">📋 Data Explorer</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="subtitle">Explore and filter the raw data</p>', 
-                    unsafe_allow_html=True)
-        
-        # Filters
-        st.markdown("### 🔍 Filters")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            income_range = st.slider(
-                "Income Range ($K)",
-                int(df['Income'].min()),
-                int(df['Income'].max()),
-                (int(df['Income'].min()), int(df['Income'].max()))
-            )
-        
-        with col2:
-            age_range = st.slider(
-                "Age Range",
-                int(df['Age'].min()),
-                int(df['Age'].max()),
-                (int(df['Age'].min()), int(df['Age'].max()))
-            )
-        
-        with col3:
-            education_filter = st.multiselect(
-                "Education Level",
-                options=df['EducationLevel'].unique(),
-                default=df['EducationLevel'].unique()
-            )
-        
-        with col4:
-            loan_filter = st.multiselect(
-                "Loan Status",
-                options=['Accepted', 'Not Accepted'],
-                default=['Accepted', 'Not Accepted']
-            )
-        
-        # Apply filters
-        filtered_df = df[
-            (df['Income'] >= income_range[0]) &
-            (df['Income'] <= income_range[1]) &
-            (df['Age'] >= age_range[0]) &
-            (df['Age'] <= age_range[1]) &
-            (df['EducationLevel'].isin(education_filter)) &
-            (df['LoanStatus'].isin(loan_filter))
-        ]
-        
-        st.markdown(f"### Showing {len(filtered_df):,} of {len(df):,} records")
-        
-        # Display columns selector
-        all_columns = df.columns.tolist()
-        selected_columns = st.multiselect(
-            "Select columns to display",
-            options=all_columns,
-            default=['ID', 'Age', 'Income', 'Family', 'CCAvg', 'EducationLevel', 'Mortgage', 'LoanStatus']
-        )
-        
-        # Display dataframe
-        if selected_columns:
-            st.dataframe(
-                filtered_df[selected_columns].head(100),
-                use_container_width=True,
-                height=400
-            )
-        
-        # Download button
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            csv = filtered_df.to_csv(index=False)
-            st.download_button(
-                label="📥 Download Filtered Data",
-                data=csv,
-                file_name="filtered_bank_data.csv",
-                mime="text/csv"
-            )
-        
-        # Summary statistics
-        with st.expander("📊 Summary Statistics"):
-            st.dataframe(filtered_df.describe(), use_container_width=True)
+        if st.button("🔮 Predict Loan Acceptance", type="primary"):
+            # Create input data
+            input_data = pd.DataFrame({
+                'Age': [pred_age],
+                'Experience': [pred_experience],
+                'Income': [pred_income],
+                'Family': [pred_family],
+                'CCAvg': [pred_ccavg],
+                'Education': [pred_education],
+                'Mortgage': [pred_mortgage],
+                'SecuritiesAccount': [pred_securities],
+                'CDAccount': [pred_cd],
+                'Online': [pred_online],
+                'CreditCard': [pred_cc]
+            })
+            
+            # Ensure columns match training features
+            input_data = input_data[[f for f in feature_names if f in input_data.columns]]
+            
+            st.markdown("---")
+            st.markdown("#### Prediction Results")
+            
+            results_cols = st.columns(len(trained_models))
+            
+            for idx, (name, model) in enumerate(trained_models.items()):
+                with results_cols[idx]:
+                    if name in ['K-Nearest Neighbors', 'Logistic Regression']:
+                        input_scaled = scaler.transform(input_data)
+                        prob = model.predict_proba(input_scaled)[0][1]
+                    else:
+                        prob = model.predict_proba(input_data)[0][1]
+                    
+                    prediction = "✅ ACCEPT" if prob >= 0.5 else "❌ REJECT"
+                    color = "green" if prob >= 0.5 else "red"
+                    
+                    st.markdown(f"**{name}**")
+                    st.markdown(f"<h3 style='color: {color}'>{prediction}</h3>", unsafe_allow_html=True)
+                    st.progress(float(prob))
+                    st.write(f"Probability: {prob:.2%}")
 
-
-# ============================================
-# RUN APPLICATION
-# ============================================
 if __name__ == "__main__":
     main()
