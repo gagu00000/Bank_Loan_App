@@ -44,7 +44,7 @@ def toggle_theme():
     else:
         st.session_state.theme = 'light'
 
-# Theme colors
+# Theme colors - FIXED: Added axis_text_color for proper readability
 THEMES = {
     'light': {
         'bg_color': '#FFFFFF',
@@ -60,7 +60,11 @@ THEMES = {
         'subheader_color': '#3B82F6',
         'plotly_template': 'plotly_white',
         'chart_bg': 'rgba(255,255,255,1)',
-        'grid_color': 'rgba(128,128,128,0.2)'
+        'grid_color': 'rgba(128,128,128,0.2)',
+        'axis_text_color': '#000000',  # BLACK for light mode
+        'axis_title_color': '#1E1E1E',  # Dark gray for axis titles
+        'legend_text_color': '#1E1E1E',  # Dark text for legend
+        'title_color': '#1E3A8A'  # Dark blue for chart titles
     },
     'dark': {
         'bg_color': '#0E1117',
@@ -76,7 +80,11 @@ THEMES = {
         'subheader_color': '#93C5FD',
         'plotly_template': 'plotly_dark',
         'chart_bg': 'rgba(14,17,23,1)',
-        'grid_color': 'rgba(128,128,128,0.3)'
+        'grid_color': 'rgba(128,128,128,0.3)',
+        'axis_text_color': '#FFFFFF',  # WHITE for dark mode
+        'axis_title_color': '#FAFAFA',  # Light color for axis titles
+        'legend_text_color': '#FAFAFA',  # Light text for legend
+        'title_color': '#60A5FA'  # Light blue for chart titles
     }
 }
 
@@ -289,7 +297,7 @@ def apply_theme_css():
 apply_theme_css()
 
 # -----------------------------------------------------------------------------
-# PLOTLY THEME HELPER
+# PLOTLY THEME HELPER - FIXED FOR AXIS TEXT COLORS
 # -----------------------------------------------------------------------------
 
 def get_plotly_layout():
@@ -300,33 +308,64 @@ def get_plotly_layout():
         'paper_bgcolor': theme['chart_bg'],
         'plot_bgcolor': theme['chart_bg'],
         'font': {'color': theme['text_color']},
+        'title': {'font': {'color': theme['title_color']}},
         'xaxis': {
             'gridcolor': theme['grid_color'],
-            'zerolinecolor': theme['grid_color']
+            'zerolinecolor': theme['grid_color'],
+            'tickfont': {'color': theme['axis_text_color']},
+            'titlefont': {'color': theme['axis_title_color']}
         },
         'yaxis': {
             'gridcolor': theme['grid_color'],
-            'zerolinecolor': theme['grid_color']
+            'zerolinecolor': theme['grid_color'],
+            'tickfont': {'color': theme['axis_text_color']},
+            'titlefont': {'color': theme['axis_title_color']}
+        },
+        'legend': {
+            'font': {'color': theme['legend_text_color']}
         }
     }
 
 def apply_plotly_theme(fig):
-    """Apply current theme to a Plotly figure"""
-    layout_settings = get_plotly_layout()
+    """Apply current theme to a Plotly figure - FIXED for axis text colors"""
+    theme = current_theme
+    
+    # Update main layout
     fig.update_layout(
-        template=layout_settings['template'],
-        paper_bgcolor=layout_settings['paper_bgcolor'],
-        plot_bgcolor=layout_settings['plot_bgcolor'],
-        font=layout_settings['font']
+        template=theme['plotly_template'],
+        paper_bgcolor=theme['chart_bg'],
+        plot_bgcolor=theme['chart_bg'],
+        font=dict(color=theme['text_color']),
+        title=dict(font=dict(color=theme['title_color'])),
+        legend=dict(font=dict(color=theme['legend_text_color']))
     )
+    
+    # Update all x-axes (handles subplots too)
     fig.update_xaxes(
-        gridcolor=layout_settings['xaxis']['gridcolor'],
-        zerolinecolor=layout_settings['xaxis']['zerolinecolor']
+        gridcolor=theme['grid_color'],
+        zerolinecolor=theme['grid_color'],
+        tickfont=dict(color=theme['axis_text_color']),
+        titlefont=dict(color=theme['axis_title_color']),
+        linecolor=theme['axis_text_color']
     )
+    
+    # Update all y-axes (handles subplots too)
     fig.update_yaxes(
-        gridcolor=layout_settings['yaxis']['gridcolor'],
-        zerolinecolor=layout_settings['yaxis']['zerolinecolor']
+        gridcolor=theme['grid_color'],
+        zerolinecolor=theme['grid_color'],
+        tickfont=dict(color=theme['axis_text_color']),
+        titlefont=dict(color=theme['axis_title_color']),
+        linecolor=theme['axis_text_color']
     )
+    
+    # Update colorbar if present (for heatmaps)
+    fig.update_coloraxes(
+        colorbar=dict(
+            tickfont=dict(color=theme['axis_text_color']),
+            titlefont=dict(color=theme['axis_title_color'])
+        )
+    )
+    
     return fig
 
 # -----------------------------------------------------------------------------
@@ -494,7 +533,7 @@ def load_data():
     return df
 
 # -----------------------------------------------------------------------------
-# VISUALIZATION FUNCTIONS
+# VISUALIZATION FUNCTIONS - ALL UPDATED WITH THEME SUPPORT
 # -----------------------------------------------------------------------------
 
 def create_kpi_metrics(df):
@@ -564,6 +603,11 @@ def create_income_distribution(df):
         )
     
     fig.update_layout(height=400, showlegend=True, title_text="Income Analysis")
+    
+    # Update subplot title colors
+    for annotation in fig['layout']['annotations']:
+        annotation['font'] = dict(color=current_theme['axis_title_color'])
+    
     return apply_plotly_theme(fig)
 
 def create_age_analysis(df):
@@ -591,6 +635,11 @@ def create_age_analysis(df):
         )
     
     fig.update_layout(height=400, title_text="Age Analysis")
+    
+    # Update subplot title colors
+    for annotation in fig['layout']['annotations']:
+        annotation['font'] = dict(color=current_theme['axis_title_color'])
+    
     return apply_plotly_theme(fig)
 
 def create_education_analysis(df):
@@ -607,7 +656,8 @@ def create_education_analysis(df):
         go.Pie(labels=edu_loan['EducationLevel'], values=edu_loan['count'],
                hole=0.4, marker_colors=[current_theme['accent_color'], 
                                         current_theme['success_color'], 
-                                        current_theme['warning_color']]),
+                                        current_theme['warning_color']],
+               textfont=dict(color=current_theme['axis_text_color'])),
         row=1, col=1
     )
     
@@ -618,11 +668,17 @@ def create_education_analysis(df):
                             current_theme['success_color'], 
                             current_theme['warning_color']],
                text=[f"{r:.1f}%" for r in edu_loan['rate']],
-               textposition='outside'),
+               textposition='outside',
+               textfont=dict(color=current_theme['axis_text_color'])),
         row=1, col=2
     )
     
     fig.update_layout(height=400, title_text="Education Analysis")
+    
+    # Update subplot title colors
+    for annotation in fig['layout']['annotations']:
+        annotation['font'] = dict(color=current_theme['axis_title_color'])
+    
     return apply_plotly_theme(fig)
 
 def create_family_analysis(df):
@@ -652,10 +708,21 @@ def create_family_analysis(df):
     
     fig.update_layout(
         title='Family Size Analysis',
-        yaxis=dict(title='Number of Customers', side='left'),
-        yaxis2=dict(title='Loan Acceptance Rate (%)', side='right', overlaying='y'),
+        yaxis=dict(
+            title='Number of Customers', 
+            side='left',
+            tickfont=dict(color=current_theme['axis_text_color']),
+            titlefont=dict(color=current_theme['axis_title_color'])
+        ),
+        yaxis2=dict(
+            title='Loan Acceptance Rate (%)', 
+            side='right', 
+            overlaying='y',
+            tickfont=dict(color=current_theme['axis_text_color']),
+            titlefont=dict(color=current_theme['axis_title_color'])
+        ),
         height=400,
-        legend=dict(x=0.1, y=1.1, orientation='h')
+        legend=dict(x=0.1, y=1.1, orientation='h', font=dict(color=current_theme['legend_text_color']))
     )
     
     return apply_plotly_theme(fig)
@@ -669,6 +736,9 @@ def create_correlation_heatmap(df):
     existing_cols = [col for col in numeric_cols if col in df.columns]
     corr_matrix = df[existing_cols].corr()
     
+    # Choose text color based on theme for better visibility on heatmap
+    heatmap_text_color = '#000000' if st.session_state.theme == 'light' else '#FFFFFF'
+    
     fig = go.Figure(data=go.Heatmap(
         z=corr_matrix.values,
         x=corr_matrix.columns,
@@ -677,8 +747,12 @@ def create_correlation_heatmap(df):
         zmid=0,
         text=np.round(corr_matrix.values, 2),
         texttemplate='%{text}',
-        textfont={"size": 10, "color": current_theme['text_color']},
-        hoverongaps=False
+        textfont={"size": 10, "color": heatmap_text_color},
+        hoverongaps=False,
+        colorbar=dict(
+            tickfont=dict(color=current_theme['axis_text_color']),
+            titlefont=dict(color=current_theme['axis_title_color'])
+        )
     ))
     
     fig.update_layout(
@@ -715,6 +789,11 @@ def create_mortgage_analysis(df):
         )
     
     fig.update_layout(height=400, title_text="Mortgage Analysis")
+    
+    # Update subplot title colors
+    for annotation in fig['layout']['annotations']:
+        annotation['font'] = dict(color=current_theme['axis_title_color'])
+    
     return apply_plotly_theme(fig)
 
 def create_cc_spending_analysis(df):
@@ -740,6 +819,11 @@ def create_cc_spending_analysis(df):
         )
     
     fig.update_layout(height=400, title_text="Credit Card Spending Analysis")
+    
+    # Update subplot title colors
+    for annotation in fig['layout']['annotations']:
+        annotation['font'] = dict(color=current_theme['axis_title_color'])
+    
     return apply_plotly_theme(fig)
 
 def create_services_analysis(df):
@@ -776,11 +860,17 @@ def create_services_analysis(df):
         go.Bar(x=service_df['Service'], y=service_df['Acceptance Rate'],
                name='Loan Acceptance Rate (%)', marker_color=current_theme['success_color'],
                text=[f"{r:.1f}%" for r in service_df['Acceptance Rate']],
-               textposition='outside'),
+               textposition='outside',
+               textfont=dict(color=current_theme['axis_text_color'])),
         row=1, col=2
     )
     
     fig.update_layout(height=400, title_text="Banking Services Analysis")
+    
+    # Update subplot title colors
+    for annotation in fig['layout']['annotations']:
+        annotation['font'] = dict(color=current_theme['axis_title_color'])
+    
     return apply_plotly_theme(fig)
 
 # -----------------------------------------------------------------------------
@@ -881,7 +971,8 @@ def create_model_comparison(results):
             y=metrics_df[metric],
             marker_color=colors[i],
             text=[f'{v:.3f}' for v in metrics_df[metric]],
-            textposition='outside'
+            textposition='outside',
+            textfont=dict(color=current_theme['axis_text_color'])
         ))
     
     fig.update_layout(
@@ -889,7 +980,7 @@ def create_model_comparison(results):
         barmode='group',
         height=500,
         yaxis_range=[0, 1.1],
-        legend=dict(orientation='h', y=1.1, x=0.3)
+        legend=dict(orientation='h', y=1.1, x=0.3, font=dict(color=current_theme['legend_text_color']))
     )
     
     return apply_plotly_theme(fig), metrics_df
@@ -925,7 +1016,7 @@ def create_roc_curves(results):
         xaxis_title='False Positive Rate',
         yaxis_title='True Positive Rate',
         height=500,
-        legend=dict(x=0.6, y=0.1)
+        legend=dict(x=0.6, y=0.1, font=dict(color=current_theme['legend_text_color']))
     )
     
     return apply_plotly_theme(fig)
@@ -939,6 +1030,9 @@ def create_confusion_matrices(results):
     
     positions = [(1, 1), (1, 2), (2, 1), (2, 2)]
     
+    # Choose text color for confusion matrix cells
+    cm_text_color = '#000000' if st.session_state.theme == 'light' else '#FFFFFF'
+    
     for (name, result), (row, col) in zip(results.items(), positions):
         cm = result['confusion_matrix']
         
@@ -951,12 +1045,17 @@ def create_confusion_matrices(results):
                 showscale=False,
                 text=[[cm[0,0], cm[0,1]], [cm[1,0], cm[1,1]]],
                 texttemplate='%{text}',
-                textfont={"size": 14}
+                textfont={"size": 14, "color": cm_text_color}
             ),
             row=row, col=col
         )
     
     fig.update_layout(height=600, title_text="Confusion Matrices")
+    
+    # Update subplot title colors
+    for annotation in fig['layout']['annotations']:
+        annotation['font'] = dict(color=current_theme['axis_title_color'])
+    
     return apply_plotly_theme(fig)
 
 def create_feature_importance(feature_importance):
@@ -965,7 +1064,10 @@ def create_feature_importance(feature_importance):
         x=feature_importance['Importance'],
         y=feature_importance['Feature'],
         orientation='h',
-        marker_color=current_theme['accent_color']
+        marker_color=current_theme['accent_color'],
+        text=[f'{v:.3f}' for v in feature_importance['Importance']],
+        textposition='outside',
+        textfont=dict(color=current_theme['axis_text_color'])
     ))
     
     fig.update_layout(
@@ -1041,6 +1143,11 @@ def create_cluster_visualization(df):
     )
     
     fig.update_layout(height=400, title_text="Customer Segmentation Analysis")
+    
+    # Update subplot title colors
+    for annotation in fig['layout']['annotations']:
+        annotation['font'] = dict(color=current_theme['axis_title_color'])
+    
     return apply_plotly_theme(fig), df.groupby('Cluster').agg({
         'Income': 'mean',
         'Age': 'mean',
