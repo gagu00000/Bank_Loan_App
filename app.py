@@ -733,7 +733,7 @@ def create_family_income_mortgage_ccavg(df):
     return apply_plotly_theme(fig)
 
 # -----------------------------------------------------------------------------
-# GRAPH 6: Securities vs CD vs Credit Cards (by Loan Status)
+# GRAPH 6: Securities vs CD vs Credit Cards (by Loan Status) - FIXED
 # -----------------------------------------------------------------------------
 
 def create_securities_cd_creditcard(df):
@@ -748,11 +748,16 @@ def create_securities_cd_creditcard(df):
                         specs=[[{"type": "bar"}, {"type": "bar"}],
                                [{"type": "pie"}, {"type": "pie"}]])
     
-    # Create service combinations
-    df['ServiceCombo'] = (df['SecuritiesAccount'].astype(str) + 
-                          df['CDAccount'].astype(str) + 
-                          df['CreditCard'].astype(str))
+    # Create a working copy
+    df_work = df.copy()
     
+    # Ensure we have numeric values for the service columns
+    df_work['SecuritiesAccount'] = pd.to_numeric(df_work['SecuritiesAccount'], errors='coerce').fillna(0).astype(int)
+    df_work['CDAccount'] = pd.to_numeric(df_work['CDAccount'], errors='coerce').fillna(0).astype(int)
+    df_work['CreditCard'] = pd.to_numeric(df_work['CreditCard'], errors='coerce').fillna(0).astype(int)
+    df_work['PersonalLoan'] = pd.to_numeric(df_work['PersonalLoan'], errors='coerce').fillna(0).astype(int)
+    
+    # Create service combination labels
     combo_labels = {
         '000': 'No Services',
         '001': 'CC Only',
@@ -763,23 +768,39 @@ def create_securities_cd_creditcard(df):
         '110': 'Securities + CD',
         '111': 'All Services'
     }
-    df['ServiceLabel'] = df['ServiceCombo'].map(combo_labels)
     
-    # Service Combinations by Loan Status
-    combo_loan = df.groupby(['ServiceLabel', 'LoanStatus']).size().unstack(fill_value=0)
+    # Create ServiceCombo column
+    df_work['ServiceCombo'] = (df_work['SecuritiesAccount'].astype(str) + 
+                               df_work['CDAccount'].astype(str) + 
+                               df_work['CreditCard'].astype(str))
     
+    df_work['ServiceLabel'] = df_work['ServiceCombo'].map(combo_labels)
+    
+    # Calculate counts for each combination by loan status
+    accepted_counts = []
+    not_accepted_counts = []
+    labels_order = list(combo_labels.values())
+    
+    for combo, label in combo_labels.items():
+        subset = df_work[df_work['ServiceCombo'] == combo]
+        accepted = len(subset[subset['PersonalLoan'] == 1])
+        not_accepted = len(subset[subset['PersonalLoan'] == 0])
+        accepted_counts.append(accepted)
+        not_accepted_counts.append(not_accepted)
+    
+    # Service Combinations by Loan Status - Bar Chart
     fig.add_trace(
-        go.Bar(x=list(combo_labels.values()), 
-               y=[combo_loan.loc[label, 'Accepted'] if label in combo_loan.index else 0 
-                  for label in combo_labels.values()],
-               name='Loan Accepted', marker_color=current_theme['success_color']),
+        go.Bar(x=labels_order, 
+               y=accepted_counts,
+               name='Loan Accepted', 
+               marker_color=current_theme['success_color']),
         row=1, col=1
     )
     fig.add_trace(
-        go.Bar(x=list(combo_labels.values()),
-               y=[combo_loan.loc[label, 'Not Accepted'] if label in combo_loan.index else 0 
-                  for label in combo_labels.values()],
-               name='Loan Not Accepted', marker_color=current_theme['error_color']),
+        go.Bar(x=labels_order,
+               y=not_accepted_counts,
+               name='Loan Not Accepted', 
+               marker_color=current_theme['error_color']),
         row=1, col=1
     )
     
@@ -788,7 +809,11 @@ def create_securities_cd_creditcard(df):
     service_names = ['Securities', 'CD Account', 'Credit Card']
     rates = []
     for service in services:
-        rate = df[df[service] == 1]['PersonalLoan'].mean() * 100
+        service_holders = df_work[df_work[service] == 1]
+        if len(service_holders) > 0:
+            rate = service_holders['PersonalLoan'].mean() * 100
+        else:
+            rate = 0
         rates.append(rate)
     
     fig.add_trace(
@@ -803,27 +828,41 @@ def create_securities_cd_creditcard(df):
         row=1, col=2
     )
     
-    # Pie chart - Securities + CD Account Holders
-    sec_cd = df[(df['SecuritiesAccount'] == 1) | (df['CDAccount'] == 1)]
-    sec_cd_loan = sec_cd['PersonalLoan'].value_counts()
+    # Pie chart - Securities + CD Account Holders by Loan Status
+    sec_cd = df_work[(df_work['SecuritiesAccount'] == 1) | (df_work['CDAccount'] == 1)]
+    if len(sec_cd) > 0:
+        sec_cd_accepted = len(sec_cd[sec_cd['PersonalLoan'] == 1])
+        sec_cd_not_accepted = len(sec_cd[sec_cd['PersonalLoan'] == 0])
+    else:
+        sec_cd_accepted = 0
+        sec_cd_not_accepted = 0
+    
     fig.add_trace(
         go.Pie(labels=['Not Accepted', 'Accepted'],
-               values=[sec_cd_loan.get(0, 0), sec_cd_loan.get(1, 0)],
+               values=[sec_cd_not_accepted, sec_cd_accepted],
                marker_colors=[current_theme['error_color'], current_theme['success_color']],
-               hole=0.4),
+               hole=0.4,
+               textinfo='label+percent',
+               textfont=dict(color=current_theme['text_color'])),
         row=2, col=1
     )
     
     # Pie chart - Credit Card Holders by Other Services
-    cc_holders = df[df['CreditCard'] == 1]
-    cc_with_other = cc_holders[(cc_holders['SecuritiesAccount'] == 1) | (cc_holders['CDAccount'] == 1)]
-    cc_without_other = cc_holders[(cc_holders['SecuritiesAccount'] == 0) & (cc_holders['CDAccount'] == 0)]
+    cc_holders = df_work[df_work['CreditCard'] == 1]
+    if len(cc_holders) > 0:
+        cc_with_other = len(cc_holders[(cc_holders['SecuritiesAccount'] == 1) | (cc_holders['CDAccount'] == 1)])
+        cc_without_other = len(cc_holders[(cc_holders['SecuritiesAccount'] == 0) & (cc_holders['CDAccount'] == 0)])
+    else:
+        cc_with_other = 0
+        cc_without_other = 0
     
     fig.add_trace(
         go.Pie(labels=['CC + Other Services', 'CC Only'],
-               values=[len(cc_with_other), len(cc_without_other)],
+               values=[cc_with_other, cc_without_other],
                marker_colors=[current_theme['accent_color'], current_theme['warning_color']],
-               hole=0.4),
+               hole=0.4,
+               textinfo='label+percent',
+               textfont=dict(color=current_theme['text_color'])),
         row=2, col=2
     )
     
